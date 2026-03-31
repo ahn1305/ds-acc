@@ -9,4 +9,4 @@ jinja2
 daphne
 pandas
 openpyxl
-channels
+channels-redis

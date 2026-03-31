@@ -1,0 +1,13 @@
+python -m venv venv
+pip install -r requirements.txt
+
+Inside Redis Sever Folder - redis-server.exe redis.windows.conf - to start redis
+redis-server ping - response should be PONG
+
+python manage.py makemigrations
+python manage.py migrate
+daphne dsx_platform.asgi:application
+celery -A dsx_platform worker --pool=solo --loglevel=info
+celery -A dsx_platform purge
+
+https://github.com/tporadowski/redis/releases - redis for windows
