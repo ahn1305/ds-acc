@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>DSX → DBT Platform</title>
+
+<style>
+body {
+    background:linear-gradient(135deg,#0f172a,#020617);
+    color:#e2e8f0;
+    font-family:Inter, sans-serif;
+    margin:0;
+}
+
+.container {
+    width:95%;
+    margin:auto;
+    padding:20px;
+}
+
+h2 { color:#38bdf8; }
+
+.card {
+    background:rgba(30,41,59,0.8);
+    backdrop-filter: blur(10px);
+    padding:20px;
+    margin-top:20px;
+    border-radius:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    transition:0.3s;
+}
+
+.card:hover {
+    transform:translateY(-3px);
+}
+
+.status {
+    padding:5px 12px;
+    border-radius:20px;
+    font-size:12px;
+}
+
+.processing { background:#f59e0b; }
+.done { background:#22c55e; }
+.failed { background:#ef4444; }
+
+.progress {
+    height:6px;
+    background:#334155;
+    margin-top:10px;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.progress-inner {
+    height:100%;
+    background:linear-gradient(90deg,#38bdf8,#6366f1);
+    border-radius:10px;
+    transition:width 0.4s ease;
+}
+
+.step {
+    padding:4px 8px;
+    margin:2px;
+    display:inline-block;
+    background:#334155;
+    border-radius:6px;
+    font-size:12px;
+}
+
+.step.done { background:#22c55e; }
+
+.tabs { margin-top:15px; }
+
+.tab-btn {
+    padding:6px 12px;
+    margin-right:5px;
+    cursor:pointer;
+    background:#334155;
+    border-radius:6px;
+}
+
+.tab-btn.active {
+    background:#38bdf8;
+    color:black;
+}
+
+.tab-content {
+    display:none;
+    margin-top:10px;
+}
+
+.tab-content.active {
+    display:block;
+}
+
+pre {
+    background:#020617;
+    padding:12px;
+    border-radius:8px;
+    overflow-x:auto;
+    line-height:1.5;
+}
+
+.error {
+    background:#ef4444;
+    padding:10px;
+    margin-top:10px;
+    border-radius:8px;
+}
+
+table {
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+
+td, th {
+    border:1px solid #334155;
+    padding:6px;
+}
+
+.incomplete {
+    color:#ef4444;
+    font-weight:bold;
+}
+
+.complete {
+    color:#22c55e;
+}
+
+button {
+    background:#38bdf8;
+    border:none;
+    padding:6px 12px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+.dbt-file {
+    background:#020617;
+    padding:8px;
+    border-radius:6px;
+    margin-bottom:6px;
+    font-size:13px;
+}
+ul {
+    list-style-type:none;
+    padding-left:20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🚀 DSX → DBT Platform</h2>
+
+<form id="uploadForm">
+    <input type="file" multiple required />
+    <button>Upload</button>
+</form>
+
+<div id="dashboard"></div>
+
+</div>
+
+<script>
+
+let socket, batchId, files = {};
+
+function connectWS(batchId) {
+    let protocol = location.protocol === "https:" ? "wss" : "ws";
+    socket = new WebSocket(`${protocol}://${location.host}/ws/batch/${batchId}/`);
+    socket.onmessage = e => handleUpdate(JSON.parse(e.data));
+    socket.onerror = startFallback;
+    socket.onclose = startFallback;
+}
+
+function startFallback() {
+    if (window.polling) return;
+    window.polling = true;
+    setInterval(loadFallback, 3000);
+}
+
+async function loadFallback() {
+    let res = await fetch(`/batch/${batchId}/`);
+    let data = await res.json();
+
+    if (!data.files) return;
+
+    data.files.forEach(f => handleUpdate({
+        file_id: f.id,
+        file_name: f.name,
+        status: f.status,
+        sttm: f.sttm_json || [],
+        snowflake_sql: f.snowflake_sql || "",
+        documentation: f.documentation || "",
+        sttm_file: f.sttm_excel || "",
+        dbt_files: f.dbt_files || {}
+    }));
+}
+
+function handleUpdate(data) {
+
+    if (!data.file_id) return;
+
+    let id = data.file_id;
+
+    if (!files[id]) {
+        files[id] = { name:data.file_name, steps:{}, progress:0, content:{} };
+    }
+
+    let f = files[id];
+
+    if (data.step) {
+        f.steps[data.step] = true;
+        f.progress = Math.min(Object.keys(f.steps).length * 14, 100);
+    }
+
+    Object.assign(f.content, data);
+
+    render();
+}
+
+function render() {
+
+    let html = "";
+
+    Object.entries(files).forEach(([id,f]) => {
+
+        html += `
+        <div class="card">
+
+            <h3>${f.name}</h3>
+
+            <span class="status ${f.content.status === "DONE" ? "done" :
+                                  f.content.status === "FAILED" ? "failed" : "processing"}">
+                ${f.content.status || "Processing"}
+            </span>
+
+            <div class="progress">
+                <div class="progress-inner" style="width:${f.progress}%"></div>
+            </div>
+
+            ${renderSteps(f.steps)}
+
+            ${f.content.error ? `<div class="error">${f.content.error}</div>` : ""}
+
+            ${renderTabs(id,f)}
+
+        </div>
+        `;
+    });
+
+    document.getElementById("dashboard").innerHTML = html;
+}
+
+function renderSteps(steps) {
+    const s = ["START","PARSING","AI_PROCESSING","STTM_GENERATED","SQL_GENERATED","DOC_GENERATED","DONE"];
+    return s.map(x => `<span class="step ${steps[x] ? "done":""}">${x}</span>`).join("");
+}
+
+function renderTabs(id,f) {
+
+    return `
+    <div class="tabs">
+
+        <div>
+            <span class="tab-btn active" onclick="openTab(event,'sttm_${id}')">STTM</span>
+            <span class="tab-btn" onclick="openTab(event,'sql_${id}')">SQL</span>
+            <span class="tab-btn" onclick="openTab(event,'doc_${id}')">Docs</span>
+            <span class="tab-btn" onclick="openTab(event,'dbt_${id}')">DBT</span>
+        </div>
+
+        <div id="sttm_${id}" class="tab-content active">
+            ${renderSTTM(f.content)}
+        </div>
+
+        <div id="sql_${id}" class="tab-content">
+            ${renderSQL(f.content)}
+        </div>
+
+        <div id="doc_${id}" class="tab-content">
+            ${renderDocs(f.content)}
+        </div>
+
+        <div id="dbt_${id}" class="tab-content">
+            ${renderDBTTree(f.content.dbt_files)}
+        </div>
+
+    </div>
+    `;
+}
+
+function openTab(evt, id) {
+    let parent = evt.target.closest(".card");
+
+    parent.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    parent.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+
+    parent.querySelector("#" + id).classList.add("active");
+    evt.target.classList.add("active");
+}
+
+function renderSTTM(c) {
+    if (!c.sttm) return "<p>No STTM</p>";
+
+    return `
+        ${renderTable(c.sttm)}
+        ${c.sttm_file ? `<br><a href="${c.sttm_file}" target="_blank"><button>Download STTM Excel</button></a>`:""}
+    `;
+}
+
+function renderSQL(c) {
+    if (!c.snowflake_sql) return "";
+    return `<pre>${c.snowflake_sql}</pre>`;
+}
+
+function renderDocs(c) {
+    if (!c.documentation) return "";
+
+    let formatted = c.documentation
+        .replace(/###/g, "\n\n")
+        .replace(/\*\*/g, "")
+        .replace(/\n/g, "<br>");
+
+    return `<div>${formatted}</div>`;
+}
+
+// ======================================================
+// 🌳 DBT TREE VIEW
+// ======================================================
+function renderDBTTree(dbtFiles) {
+    if (!dbtFiles || Object.keys(dbtFiles).length === 0) {
+        return "<p>No DBT files</p>";
+    }
+
+    let tree = {};
+
+    Object.keys(dbtFiles).forEach(path => {
+        let parts = path.split('/');
+        let node = tree;
+        for (let i=0; i<parts.length; i++) {
+            if (!node[parts[i]]) node[parts[i]] = (i === parts.length-1 ? dbtFiles[path] : {});
+            node = node[parts[i]];
+        }
+    });
+
+    function renderNode(node, path="") {
+        let html = "<ul>";
+        for (let key in node) {
+            if (typeof node[key] === "string") {
+                html += `<li>📄 ${key} <button onclick="downloadFile('${path+key}', \`${node[key].replace(/`/g,"\\`")}\`)">Download</button></li>`;
+            } else {
+                html += `<li>📁 ${key}${renderNode(node[key], path+key+"/")}</li>`;
+            }
+        }
+        html += "</ul>";
+        return html;
+    }
+
+    return renderNode(tree);
+}
+
+function downloadFile(filename, content) {
+    let blob = new Blob([content], {type:"text/plain"});
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename.split("/").pop();
+    a.click();
+}
+
+function renderTable(data) {
+
+    if (!data || !data.length) return "<p>No data</p>";
+
+    let h = Object.keys(data[0]);
+
+    let html = "<table><tr>" + h.map(x=>`<th>${x}</th>`).join("") + "</tr>";
+
+    data.forEach(r=>{
+        html += "<tr>" + h.map(x=>{
+            if (x === "transformation") {
+                return `<td class="${r.incomplete ? 'incomplete':'complete'}">${r[x] || ""}</td>`;
+            }
+            return `<td>${r[x] || ""}</td>`;
+        }).join("") + "</tr>";
+    });
+
+    return html + "</table>";
+}
+
+document.getElementById("uploadForm").onsubmit = async e => {
+
+    e.preventDefault();
+
+    let fd = new FormData();
+    let filesInput = document.querySelector("input").files;
+
+    for (let f of filesInput) fd.append("files", f);
+
+    let res = await fetch("/upload/", { method:"POST", body:fd });
+    let data = await res.json();
+
+    batchId = data.batch_id;
+
+    document.getElementById("dashboard").innerHTML = "Processing...";
+
+    connectWS(batchId);
+};
+
+</script>
+
+</body>
+</html>
