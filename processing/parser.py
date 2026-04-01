@@ -1,4 +1,6 @@
 import re
+import xml.etree.ElementTree as ET
+
 
 
 class DSXParser:
@@ -100,3 +102,95 @@ class DSXParser:
     def _extract(self, pattern, text):
         match = re.search(pattern, text)
         return match.group(1) if match else None
+
+
+
+
+
+
+class InformaticaParser:
+
+    def parse(self, file_path):
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+
+        return {
+            "job_name": self.extract_job_name(root),
+            "stages": self.extract_transformations(root),
+            "links": self.extract_connectors(root)
+        }
+
+    # =========================================
+    # JOB NAME
+    # =========================================
+    def extract_job_name(self, root):
+        mapping = root.find(".//MAPPING")
+        return mapping.get("NAME") if mapping is not None else "UNKNOWN"
+
+    # =========================================
+    # TRANSFORMATIONS → STAGES
+    # =========================================
+    def extract_transformations(self, root):
+
+        stages = {}
+
+        for trans in root.findall(".//TRANSFORMATION"):
+
+            name = trans.get("NAME")
+            trans_type = trans.get("TYPE")
+
+            inputs = self.extract_inputs(trans)
+            outputs = self.extract_fields(trans)
+
+            stages[name] = {
+                "type": trans_type,
+                "inputs": inputs,
+                "outputs": outputs
+            }
+
+        return stages
+
+    # =========================================
+    # FIELDS (COLUMNS)
+    # =========================================
+    def extract_fields(self, trans):
+
+        fields = []
+
+        for field in trans.findall(".//TRANSFORMFIELD"):
+
+            name = field.get("NAME")
+            expression = field.get("EXPRESSION")
+
+            fields.append({
+                "name": name,
+                "derivation": expression
+            })
+
+        return fields
+
+    # =========================================
+    # INPUT LINKS (LOGICAL)
+    # =========================================
+    def extract_inputs(self, trans):
+        # Placeholder — actual input mapping comes from connectors
+        return []
+
+    # =========================================
+    # CONNECTORS → LINKS
+    # =========================================
+    def extract_connectors(self, root):
+
+        links = []
+
+        for conn in root.findall(".//CONNECTOR"):
+
+            from_instance = conn.get("FROMINSTANCE")
+            to_instance = conn.get("TOINSTANCE")
+
+            links.append({
+                "from": from_instance,
+                "to": to_instance
+            })
+
+        return links

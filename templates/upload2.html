@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Informatica → DBT Platform</title>
+
+<style>
+body {
+    background: linear-gradient(135deg,#020617,#0f172a);
+    color: #e2e8f0;
+    font-family: Inter, sans-serif;
+    margin: 0;
+}
+
+.container {
+    width: 95%;
+    margin: auto;
+    padding: 20px;
+}
+
+h2 { color: #22d3ee; }
+
+.upload-box {
+    background: rgba(30,41,59,0.8);
+    padding: 20px;
+    border-radius: 14px;
+}
+
+.card {
+    background: rgba(30,41,59,0.85);
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 14px;
+}
+
+.status {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.processing { background: #f59e0b; }
+.done { background: #22c55e; }
+.failed { background: #ef4444; }
+
+.progress {
+    height: 6px;
+    background: #334155;
+    margin-top: 10px;
+    border-radius: 10px;
+}
+
+.progress-inner {
+    height: 100%;
+    background: linear-gradient(90deg,#22d3ee,#6366f1);
+}
+
+.tabs { margin-top: 15px; }
+
+.tab-btn {
+    padding: 6px 12px;
+    margin-right: 5px;
+    cursor: pointer;
+    background: #334155;
+    border-radius: 6px;
+}
+
+.tab-btn.active {
+    background: #22d3ee;
+    color: black;
+}
+
+.tab-content {
+    display: none;
+    margin-top: 10px;
+}
+
+.tab-content.active { display: block; }
+
+table { width: 100%; border-collapse: collapse; }
+
+td, th {
+    border: 1px solid #334155;
+    padding: 6px;
+}
+
+tr.incomplete-row { background: rgba(239,68,68,0.15); }
+tr.complete-row { background: rgba(34,197,94,0.08); }
+
+pre {
+    background: #020617;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+button {
+    background: #22d3ee;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.incomplete { color:#ef4444; font-weight:bold; }
+.complete { color:#22c55e; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🧬 Informatica → DBT Converter</h2>
+
+<div class="upload-box">
+<form id="uploadForm">
+<input type="file" multiple required />
+<button>Upload XML</button>
+</form>
+</div>
+
+<div id="dashboard"></div>
+
+</div>
+
+<script>
+
+let socket, batchId, files = {};
+
+function connectWS(batchId) {
+    let protocol = location.protocol === "https:" ? "wss" : "ws";
+    socket = new WebSocket(`${protocol}://${location.host}/ws/batch/${batchId}/`);
+    socket.onmessage = e => handleUpdate(JSON.parse(e.data));
+}
+
+function handleUpdate(data) {
+
+    if (!data.file_id) return;
+
+    let id = data.file_id;
+
+    if (!files[id]) {
+        files[id] = {
+            name: data.file_name || `File ${id}`,
+            progress: 0,
+            content: {}
+        };
+    }
+
+    let f = files[id];
+
+    const stepMap = {
+        "START": 5,
+        "PARSING": 15,
+        "GRAPH": 35,
+        "LINEAGE": 55,
+        "STTM": 70,
+        "SQL": 85,
+        "DONE": 100
+    };
+
+    if (data.step && stepMap[data.step]) {
+        f.progress = stepMap[data.step];
+    }
+
+    Object.assign(f.content, data);
+    render();
+}
+
+function render() {
+
+    let html = "";
+
+    Object.entries(files).forEach(([id,f]) => {
+
+        html += `
+        <div class="card">
+
+            <h3>${f.name}</h3>
+            <p style="font-size:12px;color:#94a3b8;">
+                ${f.content.parsed?.job_name || ""}
+            </p>
+
+            <span class="status ${
+                f.content.status === "DONE" ? "done" :
+                f.content.status === "FAILED" ? "failed" : "processing"
+            }">
+                ${f.content.step || f.content.status || "Processing"}
+            </span>
+
+            <div class="progress">
+                <div class="progress-inner" style="width:${f.progress}%"></div>
+            </div>
+
+            ${renderTabs(id,f)}
+
+        </div>
+        `;
+    });
+
+    document.getElementById("dashboard").innerHTML = html;
+}
+
+function renderTabs(id,f) {
+
+    return `
+    <div class="tabs">
+
+        <div>
+            <span class="tab-btn active" onclick="openTab(event,'sttm_${id}')">STTM</span>
+            <span class="tab-btn" onclick="openTab(event,'lineage_${id}')">Lineage</span>
+            <span class="tab-btn" onclick="openTab(event,'graph_${id}')">Graph</span>
+            <span class="tab-btn" onclick="openTab(event,'stages_${id}')">Stages</span>
+            <span class="tab-btn" onclick="openTab(event,'sql_${id}')">SQL</span>
+            <span class="tab-btn" onclick="openTab(event,'doc_${id}')">Docs</span>
+            <span class="tab-btn" onclick="openTab(event,'dbt_${id}')">DBT</span>
+        </div>
+
+        <div id="sttm_${id}" class="tab-content active">
+            ${renderSTTM(f.content)}
+        </div>
+
+        <div id="lineage_${id}" class="tab-content">
+            ${renderLineage(f.content)}
+        </div>
+
+        <div id="graph_${id}" class="tab-content">
+            ${renderGraph(f.content)}
+        </div>
+
+        <div id="stages_${id}" class="tab-content">
+            ${renderStages(f.content)}
+        </div>
+
+        <div id="sql_${id}" class="tab-content">
+            ${renderSQL(f.content)}
+        </div>
+
+        <div id="doc_${id}" class="tab-content">
+            ${renderDocs(f.content)}
+        </div>
+
+        <div id="dbt_${id}" class="tab-content">
+            ${renderDBTTree(f.content)}
+        </div>
+
+    </div>
+    `;
+}
+
+function renderLineage(c) {
+
+    if (!c.lineage) return "<p>No lineage</p>";
+
+    let html = `<table>
+    <tr>
+        <th>Source</th>
+        <th>Target</th>
+        <th>Stage</th>
+        <th>Complexity</th>
+    </tr>`;
+
+    c.lineage.forEach(l => {
+        html += `
+        <tr>
+            <td>${l.source}</td>
+            <td>${l.target}</td>
+            <td>${l.stage}</td>
+            <td>${getComplexityBadge(l.complexity)}</td>
+        </tr>`;
+    });
+
+    return html + "</table>";
+}
+
+function openTab(evt, id) {
+    let parent = evt.target.closest(".card");
+
+    parent.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    parent.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+
+    parent.querySelector("#" + id).classList.add("active");
+    evt.target.classList.add("active");
+}
+
+/* ================= STTM ================= */
+function renderSTTM(c) {
+
+    if (!c.sttm) return "<p>No STTM</p>";
+
+    let html = `<table>
+    <tr>
+        <th>SOURCE</th><th>TARGET</th><th>TRANSFORMATION</th>
+        <th>STAGE</th><th>CATEGORY</th>
+        <th>TYPE</th><th>COMPLEXITY</th>
+        <th>CONF</th><th>INC</th>
+    </tr>`;
+
+    c.sttm.forEach(r => {
+
+        let cat = c.graph?.stages?.[r.stage]?.category || "";
+
+        html += `<tr class="${r.incomplete ? 'incomplete-row':'complete-row'}">
+            <td>${r.source}</td>
+            <td>${r.target}</td>
+            <td class="${r.incomplete ? 'incomplete':'complete'}">
+                <details>
+                    <summary>${(r.transformation || "").slice(0,40)}</summary>
+                    <pre>${r.transformation}</pre>
+                </details>
+            </td>
+            <td>${r.stage}</td>
+            <td>${getCategoryBadge(cat)}</td>
+            <td>${getTypeBadge(r.type)}</td>
+            <td>${getComplexityBadge(r.complexity)}</td>
+            <td>${r.confidence}</td>
+            <td>${r.incomplete ? "❌":"✅"}</td>
+        </tr>`;
+    });
+
+    return html + "</table>";
+}
+
+/* ================= GRAPH ================= */
+function renderGraph(c) {
+
+    if (!c.graph) return "<p>No graph</p>";
+
+    let graph = c.graph.graph || {};
+
+    let html = "";
+
+    Object.entries(graph).forEach(([src, targets]) => {
+
+        let cat = c.graph.stages?.[src]?.category || "";
+
+        html += `<div style="margin-bottom:10px;">
+            <b>${src}</b> ${getCategoryBadge(cat)}
+            <div style="margin-left:15px;">`;
+
+        targets.forEach(t => {
+            html += `→ ${t}<br>`;
+        });
+
+        html += "</div></div>";
+    });
+
+    return html;
+}
+
+function renderStages(c) {
+
+    if (!c.graph?.stages) return "<p>No stages</p>";
+
+    let html = `<table>
+    <tr>
+        <th>Stage</th>
+        <th>Category</th>
+        <th>Inputs</th>
+        <th>Outputs</th>
+        <th>Filter</th>
+        <th>Lookup</th>
+        <th>Aggregation</th>
+    </tr>`;
+
+    Object.entries(c.graph.stages).forEach(([name, s]) => {
+
+        html += `<tr>
+            <td>${name}</td>
+            <td>${getCategoryBadge(s.category)}</td>
+            <td>${(s.inputs || []).join(", ")}</td>
+            <td>${(s.outputs || []).map(o => o.name).join(", ")}</td>
+            <td>${s.has_filter ? "✅" : "—"}</td>
+            <td>${s.has_lookup ? "✅" : "—"}</td>
+            <td>${s.has_aggregation ? "✅" : "—"}</td>
+        </tr>`;
+    });
+
+    return html + "</table>";
+}
+
+/* ================= SQL ================= */
+function renderSQL(c) {
+
+    if (!c.sql_models) return "<p>No SQL</p>";
+
+    let html = "";
+
+    Object.entries(c.sql_models).forEach(([layer, models]) => {
+
+        html += `<h4>${layer}</h4>`;
+
+        Object.entries(models).forEach(([name, sql]) => {
+
+            html += `
+            <details>
+                <summary><b>${name}.sql</b></summary>
+                <pre>${sql}</pre>
+            </details>`;
+        });
+    });
+
+    return html;
+}
+
+/* ================= DOC ================= */
+function renderDocs(c) {
+    return `<pre>${c.documentation || "No Docs"}</pre>`;
+}
+
+/* ================= DBT ================= */
+function renderDBTTree(c) {
+
+    if (!c.sql_models) return "<p>No models</p>";
+
+    let html = "";
+
+    Object.entries(c.sql_models).forEach(([layer, m]) => {
+
+        html += `<h4>${layer}</h4><ul>`;
+
+        Object.entries(m).forEach(([name, sql]) => {
+            html += `<li>${name}.sql 
+                <button onclick="download('${name}.sql', \`${sql}\`)">⬇</button>
+            </li>`;
+        });
+
+        html += "</ul>";
+    });
+
+    return html;
+}
+
+/* ================= BADGES ================= */
+function getTypeBadge(t) {
+    return `<span style="background:#6366f1;padding:3px 8px;border-radius:6px;">${t}</span>`;
+}
+
+function getComplexityBadge(c) {
+    return `<span style="background:#f59e0b;padding:3px 8px;border-radius:6px;">${c}</span>`;
+}
+
+function getCategoryBadge(c) {
+    return `<span style="background:#22c55e;padding:3px 8px;border-radius:6px;">${c}</span>`;
+}
+
+/* ================= DOWNLOAD ================= */
+function download(name, content) {
+    let blob = new Blob([content], {type:"text/plain"});
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+}
+
+/* ================= UPLOAD ================= */
+document.getElementById("uploadForm").onsubmit = async e => {
+
+    e.preventDefault();
+
+    let fd = new FormData();
+    let input = document.querySelector("input").files;
+
+    for (let f of input) fd.append("files", f);
+
+    let res = await fetch("/informatica/upload/", {
+        method: "POST",
+        body: fd
+    });
+
+    let data = await res.json();
+
+    batchId = data.batch_id;
+
+    document.getElementById("dashboard").innerHTML = "Processing...";
+
+    connectWS(batchId);
+};
+
+</script>
+
+</body>
+</html>

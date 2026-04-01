@@ -19,16 +19,24 @@ from django.contrib import admin
 from django.urls import path
 from ingestion.views import UploadView
 from ui.views import upload_page
-from ingestion.views import BatchDetailView
+from ui.views import home_page, informatica_upload_page
+from ingestion.views import BatchDetailView, InformaticaBatchDetailView, InformaticaUploadView
 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     
-    path('', upload_page),            # UI
+    path('', home_page),
+    path('dsx/',upload_page),            # UI
     path('upload/', UploadView.as_view()),  # API
     path("batch/<int:batch_id>/", BatchDetailView.as_view()),
 
+    # =========================
+    # INFORMATICA ROUTES
+    # =========================
+    path("informatica/upload/", InformaticaUploadView.as_view(), name="informatica-upload"),
+    path("informatica/batch/<int:batch_id>/", InformaticaBatchDetailView.as_view(), name="informatica-batch-detail"),
+    path('informatica/', informatica_upload_page),
 
 
 ]

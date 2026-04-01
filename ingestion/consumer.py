@@ -39,3 +39,4 @@ async def connect(self):
     await self.accept()
 
     print("WS CONNECTED")  # 👈 MUST PRINT
+

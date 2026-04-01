@@ -895,10 +895,19 @@ import os
 from processing.lineage import LineageEngine
 from processing.sql_generator import SnowflakeSQLGenerator
 
+
+from processing.informatica_parser import InformaticaParser
+from processing.informatica_graph_builder import InformaticaGraphBuilder
+from processing.informatica_lineage_engine import InformaticaLineageEngine
+from processing.informatica_sttm_generator import InformaticaSTTMGenerator
+from processing.informatica_sql_generator import InformaticaSQLGenerator
+from processing.informatica_documentation_generator import InformaticaDocumentationGenerator
+
+
 class DSXAgent:
 
     def __init__(self):
-        self.client = genai.Client(api_key="")
+        self.client = genai.Client(api_key="AIzaSyBAbu8p210wksCh0tUYPogqc2AbUnHG3Ic")
 
     # ======================================================
     # 🚀 MAIN PIPELINE
@@ -1135,10 +1144,10 @@ class DSXAgent:
         # ADD SOURCES + TESTS
         # -----------------------------------
         sources_yml = self.generate_sources_yml(parsed)
-        schema_yml = self.generate_schema_yml(raw_models)
+        # schema_yml = self.generate_schema_yml(raw_models)
 
         dbt_project["models/sources.yml"] = sources_yml
-        dbt_project["models/schema.yml"] = schema_yml
+        # dbt_project["models/schema.yml"] = schema_yml
 
         return dbt_project
     
@@ -1231,38 +1240,38 @@ class DSXAgent:
         
 
     
-    def generate_schema_yml(self, raw_models):
+    # def generate_schema_yml(self, raw_models):
 
-        models_yaml = []
+    #     models_yaml = []
 
-        for layer, models in raw_models.items():
+    #     for layer, models in raw_models.items():
 
-            for model_name in models.keys():
+    #         for model_name in models.keys():
 
-                columns = []
+    #             columns = []
 
-                # 🔥 smart default tests
-                columns.append({
-                    "name": "id",
-                    "tests": ["not_null", "unique"]
-                })
+    #             # 🔥 smart default tests
+    #             columns.append({
+    #                 "name": "id",
+    #                 "tests": ["not_null", "unique"]
+    #             })
 
-                columns.append({
-                    "name": "created_at",
-                    "tests": ["not_null"]
-                })
+    #             columns.append({
+    #                 "name": "created_at",
+    #                 "tests": ["not_null"]
+    #             })
 
-                models_yaml.append({
-                    "name": model_name,
-                    "columns": columns
-                })
+    #             models_yaml.append({
+    #                 "name": model_name,
+    #                 "columns": columns
+    #             })
 
-        final = {
-            "version": 2,
-            "models": models_yaml
-        }
+    #     final = {
+    #         "version": 2,
+    #         "models": models_yaml
+    #     }
 
-        return self.to_yaml(final)
+    #     return self.to_yaml(final)
     
     def to_yaml(self, data):
 
@@ -1331,3 +1340,180 @@ SQL SAMPLE:
         for stage, details in parsed.get("stages", {}).items():
             doc.append(f"{stage} ({details.get('type')})")
         return "\n".join(doc)
+
+
+
+
+
+
+
+class InformaticaPipeline:
+
+    def __init__(self, llm_client=None, debug=True):
+        self.llm_client = llm_client
+        self.debug = debug
+
+    # ======================================================
+    # 🚀 MAIN PIPELINE
+    # ======================================================
+    def run(self, file_path):
+
+        self._log("\n🚀 ===== INFORMATICA PIPELINE STARTED =====\n")
+
+        try:
+            # --------------------------------------
+            # STEP 1: PARSE XML
+            # --------------------------------------
+            parser = InformaticaParser()
+            parsed = parser.parse(file_path)
+
+            self._log(f"\n📥 PARSED JOB: {parsed.get('job_name')}")
+
+            if not parsed.get("stages"):
+                raise ValueError("❌ No stages parsed")
+
+            # --------------------------------------
+            # STEP 2: BUILD GRAPH
+            # --------------------------------------
+            graph_builder = InformaticaGraphBuilder(parsed)
+            graph = graph_builder.run()
+
+            self._log("\n🔗 GRAPH BUILT")
+            self._log(f"Stages: {len(graph.get('stages', {}))}")
+            self._log(f"Links: {len(graph.get('links', []))}")
+
+            # --------------------------------------
+            # STEP 3: LINEAGE
+            # --------------------------------------
+            lineage_engine = InformaticaLineageEngine(graph)
+            lineage = lineage_engine.run()
+
+            self._log("\n🔥 LINEAGE GENERATED")
+            self._log(lineage[:3] if lineage else "No lineage")
+
+            # --------------------------------------
+            # STEP 4: STTM
+            # --------------------------------------
+            sttm_gen = InformaticaSTTMGenerator(lineage, graph)
+            sttm = sttm_gen.run()
+
+            self._log("\n📊 STTM GENERATED")
+            self._log(sttm[:3] if sttm else "No STTM")
+
+            # --------------------------------------
+            # STEP 5: SQL GENERATION
+            # --------------------------------------
+            sql_gen = InformaticaSQLGenerator(graph)
+            models = sql_gen.run()
+
+            self._log("\n❄️ SQL MODELS GENERATED")
+            for layer, m in models.items():
+                self._log(f"{layer}: {list(m.keys())}")
+
+            # --------------------------------------
+            # STEP 6: FLATTEN SQL (UI PURPOSE)
+            # --------------------------------------
+            flat_sql = self.flatten_sql(models)
+
+            # --------------------------------------
+            # STEP 7: DOCUMENTATION
+            # --------------------------------------
+            doc_gen = InformaticaDocumentationGenerator(
+                parsed, sttm, models, self.llm_client
+            )
+            documentation = doc_gen.run()
+
+            self._log("\n📄 DOCUMENTATION GENERATED")
+            self._log("\n✅ ===== PIPELINE COMPLETED =====\n")
+
+            # --------------------------------------
+            # FINAL RESPONSE (🔥 ENHANCED)
+            # --------------------------------------
+            return {
+                "job_name": parsed.get("job_name"),
+
+                # Core outputs
+                "parsed": parsed,
+                "graph": graph,
+
+                # Lineage
+                "lineage": lineage,
+                "lineage_graph": graph.get("lineage_graph"),
+                "column_map": graph.get("column_map"),
+
+                # STTM
+                "sttm": sttm,
+
+                # SQL
+                "sql_models": models,
+                "snowflake_sql": flat_sql,
+
+                # Execution
+                "execution_order": graph.get("execution_order"),
+
+                # Metadata
+                "stage_summary": self.build_stage_summary(graph),
+
+                # Documentation
+                "documentation": documentation
+            }
+
+        except Exception as e:
+            self._log(f"\n❌ PIPELINE FAILED: {str(e)}")
+
+            return {
+                "error": str(e),
+                "job_name": parsed.get("job_name") if 'parsed' in locals() else None
+            }
+
+    # ======================================================
+    # 📊 STAGE SUMMARY (🔥 NEW)
+    # ======================================================
+    def build_stage_summary(self, graph):
+
+        summary = []
+
+        for stage_name, stage in graph.get("stages", {}).items():
+
+            summary.append({
+                "stage": stage_name,
+                "category": stage.get("category"),
+                "inputs": stage.get("inputs"),
+                "outputs": [c["name"] for c in stage.get("outputs", [])],
+                "has_filter": stage.get("has_filter"),
+                "has_lookup": stage.get("has_lookup"),
+                "has_aggregation": stage.get("has_aggregation")
+            })
+
+        return summary
+
+    # ======================================================
+    # ❄️ FLATTEN SQL (UI PURPOSE)
+    # ======================================================
+    def flatten_sql(self, models):
+
+        if not models:
+            return "-- No SQL generated"
+
+        all_sql = []
+
+        for layer, layer_models in models.items():
+
+            for model_name, sql in layer_models.items():
+
+                if not sql:
+                    continue
+
+                all_sql.append(
+                    f"\n-- LAYER: {layer.upper()} | MODEL: {model_name}\n{sql}"
+                )
+
+        return "\n".join(all_sql) if all_sql else "-- No SQL generated"
+
+    # ======================================================
+    # 🧠 LOGGER (DEBUG CONTROL)
+    # ======================================================
+    def _log(self, msg):
+
+        if self.debug:
+            print(msg)

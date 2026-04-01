@@ -26,3 +26,17 @@ class DSXFile(models.Model):
     snowflake_sql = models.TextField(null=True, blank=True)
     dbt_sql = models.TextField(null=True, blank=True)
     documentation = models.TextField(null=True, blank=True)
+
+
+
+class InformaticaFile(models.Model):
+    batch = models.ForeignKey("BatchJob", on_delete=models.CASCADE)
+    file = models.FileField(upload_to="informatica/")
+
+    status = models.CharField(max_length=50, default="PENDING")
+
+    sttm_json = models.JSONField(null=True, blank=True)
+    snowflake_sql = models.TextField(null=True, blank=True)
+    documentation = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)

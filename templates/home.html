@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Data Pipeline Accelerator</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin:0;
+    font-family:Inter, sans-serif;
+    background:#020617;
+    color:#e2e8f0;
+}
+
+/* ================= HEADER ================= */
+.header {
+    padding:20px 40px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid #1e293b;
+}
+
+.logo {
+    font-weight:600;
+    font-size:18px;
+    color:#38bdf8;
+}
+
+/* ================= HERO ================= */
+.hero {
+    text-align:center;
+    margin-top:80px;
+}
+
+.hero h1 {
+    font-size:36px;
+    font-weight:600;
+    margin-bottom:10px;
+}
+
+.hero p {
+    color:#94a3b8;
+    font-size:16px;
+}
+
+/* ================= GRID ================= */
+.grid {
+    margin-top:60px;
+    display:flex;
+    justify-content:center;
+    gap:30px;
+    flex-wrap:wrap;
+}
+
+/* ================= CARD ================= */
+.card {
+    width:260px;
+    background:#0f172a;
+    border:1px solid #1e293b;
+    border-radius:14px;
+    padding:25px;
+    cursor:pointer;
+    transition:0.25s;
+}
+
+.card:hover {
+    transform:translateY(-4px);
+    border-color:#38bdf8;
+}
+
+.card h3 {
+    margin-bottom:10px;
+}
+
+.card p {
+    font-size:14px;
+    color:#94a3b8;
+}
+
+.card .arrow {
+    margin-top:15px;
+    color:#38bdf8;
+    font-size:13px;
+}
+
+/* ================= FOOTER ================= */
+.footer {
+    text-align:center;
+    margin-top:80px;
+    font-size:12px;
+    color:#64748b;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <div class="logo">🚀 Data Pipeline Accelerator</div>
+</div>
+
+<div class="hero">
+    <h1>Convert Legacy ETL to dbt</h1>
+    <p>Modernize your pipelines with automated conversion</p>
+</div>
+
+<div class="grid">
+
+    <!-- DSX -->
+    <div class="card" onclick="navigate('/dsx/')">
+        <h3>DSX → DBT</h3>
+        <p>Convert IBM DataStage jobs into dbt models, SQL, and lineage.</p>
+        <div class="arrow">Open →</div>
+    </div>
+
+    <!-- INFORMATICA -->
+    <div class="card" onclick="navigate('/informatica/')">
+        <h3>Informatica → DBT</h3>
+        <p>Transform Informatica mappings into modern dbt pipelines.</p>
+        <div class="arrow">Open →</div>
+    </div>
+
+</div>
+
+<div class="footer">
+    Built for data engineers ⚡
+</div>
+
+<script>
+function navigate(path) {
+    window.location.href = path;
+}
+</script>
+
+</body>
+</html>
