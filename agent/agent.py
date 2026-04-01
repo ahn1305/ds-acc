@@ -898,7 +898,7 @@ from processing.sql_generator import SnowflakeSQLGenerator
 class DSXAgent:
 
     def __init__(self):
-        self.client = genai.Client(api_key="AIzaSyBAbu8p210wksCh0tUYPogqc2AbUnHG3Ic")
+        self.client = genai.Client(api_key="")
 
     # ======================================================
     # 🚀 MAIN PIPELINE
