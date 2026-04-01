@@ -21,16 +21,9 @@ h2 { color:#38bdf8; }
 
 .card {
     background:rgba(30,41,59,0.8);
-    backdrop-filter: blur(10px);
     padding:20px;
     margin-top:20px;
     border-radius:14px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.4);
-    transition:0.3s;
-}
-
-.card:hover {
-    transform:translateY(-3px);
 }
 
 .status {
@@ -48,26 +41,12 @@ h2 { color:#38bdf8; }
     background:#334155;
     margin-top:10px;
     border-radius:10px;
-    overflow:hidden;
 }
 
 .progress-inner {
     height:100%;
     background:linear-gradient(90deg,#38bdf8,#6366f1);
-    border-radius:10px;
-    transition:width 0.4s ease;
 }
-
-.step {
-    padding:4px 8px;
-    margin:2px;
-    display:inline-block;
-    background:#334155;
-    border-radius:6px;
-    font-size:12px;
-}
-
-.step.done { background:#22c55e; }
 
 .tabs { margin-top:15px; }
 
@@ -98,15 +77,14 @@ pre {
     padding:12px;
     border-radius:8px;
     overflow-x:auto;
-    line-height:1.5;
 }
 
-.error {
-    background:#ef4444;
-    padding:10px;
-    margin-top:10px;
-    border-radius:8px;
-}
+/* STTM */
+tr.incomplete-row { background: rgba(239, 68, 68, 0.15); }
+tr.complete-row { background: rgba(34, 197, 94, 0.08); }
+
+.incomplete { color:#ef4444; font-weight:bold; }
+.complete { color:#22c55e; }
 
 table {
     width:100%;
@@ -119,34 +97,23 @@ td, th {
     padding:6px;
 }
 
-.incomplete {
-    color:#ef4444;
-    font-weight:bold;
+/* DBT TREE */
+ul {
+    list-style-type:none;
+    padding-left:20px;
 }
 
-.complete {
-    color:#22c55e;
+.dbt-file {
+    margin:5px 0;
 }
 
 button {
     background:#38bdf8;
     border:none;
-    padding:6px 12px;
+    padding:4px 8px;
     border-radius:6px;
     cursor:pointer;
-    margin-top:10px;
-}
-
-.dbt-file {
-    background:#020617;
-    padding:8px;
-    border-radius:6px;
-    margin-bottom:6px;
-    font-size:13px;
-}
-ul {
-    list-style-type:none;
-    padding-left:20px;
+    margin-left:10px;
 }
 </style>
 </head>
@@ -174,32 +141,6 @@ function connectWS(batchId) {
     let protocol = location.protocol === "https:" ? "wss" : "ws";
     socket = new WebSocket(`${protocol}://${location.host}/ws/batch/${batchId}/`);
     socket.onmessage = e => handleUpdate(JSON.parse(e.data));
-    socket.onerror = startFallback;
-    socket.onclose = startFallback;
-}
-
-function startFallback() {
-    if (window.polling) return;
-    window.polling = true;
-    setInterval(loadFallback, 3000);
-}
-
-async function loadFallback() {
-    let res = await fetch(`/batch/${batchId}/`);
-    let data = await res.json();
-
-    if (!data.files) return;
-
-    data.files.forEach(f => handleUpdate({
-        file_id: f.id,
-        file_name: f.name,
-        status: f.status,
-        sttm: f.sttm_json || [],
-        snowflake_sql: f.snowflake_sql || "",
-        documentation: f.documentation || "",
-        sttm_file: f.sttm_excel || "",
-        dbt_files: f.dbt_files || {}
-    }));
 }
 
 function handleUpdate(data) {
@@ -209,14 +150,19 @@ function handleUpdate(data) {
     let id = data.file_id;
 
     if (!files[id]) {
-        files[id] = { name:data.file_name, steps:{}, progress:0, content:{} };
+        files[id] = {
+            name: data.file_name || `File ${id}`,
+            progress: 0,
+            content: {}
+        };
     }
 
     let f = files[id];
 
-    if (data.step) {
-        f.steps[data.step] = true;
-        f.progress = Math.min(Object.keys(f.steps).length * 14, 100);
+    if (data.step === "DONE") {
+        f.progress = 100;
+    } else if (data.step) {
+        f.progress += 15;
     }
 
     Object.assign(f.content, data);
@@ -244,10 +190,6 @@ function render() {
                 <div class="progress-inner" style="width:${f.progress}%"></div>
             </div>
 
-            ${renderSteps(f.steps)}
-
-            ${f.content.error ? `<div class="error">${f.content.error}</div>` : ""}
-
             ${renderTabs(id,f)}
 
         </div>
@@ -255,11 +197,6 @@ function render() {
     });
 
     document.getElementById("dashboard").innerHTML = html;
-}
-
-function renderSteps(steps) {
-    const s = ["START","PARSING","AI_PROCESSING","STTM_GENERATED","SQL_GENERATED","DOC_GENERATED","DONE"];
-    return s.map(x => `<span class="step ${steps[x] ? "done":""}">${x}</span>`).join("");
 }
 
 function renderTabs(id,f) {
@@ -304,35 +241,58 @@ function openTab(evt, id) {
     evt.target.classList.add("active");
 }
 
+/* ================= STTM ================= */
 function renderSTTM(c) {
-    if (!c.sttm) return "<p>No STTM</p>";
 
-    return `
-        ${renderTable(c.sttm)}
-        ${c.sttm_file ? `<br><a href="${c.sttm_file}" target="_blank"><button>Download STTM Excel</button></a>`:""}
-    `;
+    if (!c.sttm || !c.sttm.length) return "<p>No STTM</p>";
+
+    const headers = ["source","target","transformation","stage","type","confidence","incomplete"];
+
+    let html = "<table><tr>" + headers.map(x=>`<th>${x.toUpperCase()}</th>`).join("") + "</tr>";
+
+    c.sttm.forEach(r => {
+
+        html += `<tr class="${r.incomplete ? 'incomplete-row' : 'complete-row'}">`;
+
+        headers.forEach(h => {
+
+            let val = r[h] ?? "";
+
+            if (h === "transformation") {
+                html += `<td class="${r.incomplete ? 'incomplete':'complete'}">${val}</td>`;
+            }
+
+            else if (h === "incomplete") {
+                html += `<td>${r.incomplete ? "❌ Yes" : "✅ No"}</td>`;
+            }
+
+            else {
+                html += `<td>${val}</td>`;
+            }
+
+        });
+
+        html += "</tr>";
+    });
+
+    return html + "</table>";
 }
 
+/* ================= SQL ================= */
 function renderSQL(c) {
-    if (!c.snowflake_sql) return "";
+    if (!c.snowflake_sql) return "<p>No SQL generated</p>";
     return `<pre>${c.snowflake_sql}</pre>`;
 }
 
+/* ================= DOC ================= */
 function renderDocs(c) {
-    if (!c.documentation) return "";
-
-    let formatted = c.documentation
-        .replace(/###/g, "\n\n")
-        .replace(/\*\*/g, "")
-        .replace(/\n/g, "<br>");
-
-    return `<div>${formatted}</div>`;
+    if (!c.documentation) return "<p>No Documentation</p>";
+    return `<pre>${c.documentation}</pre>`;
 }
 
-// ======================================================
-// 🌳 DBT TREE VIEW
-// ======================================================
+/* ================= DBT TREE ================= */
 function renderDBTTree(dbtFiles) {
+
     if (!dbtFiles || Object.keys(dbtFiles).length === 0) {
         return "<p>No DBT files</p>";
     }
@@ -342,23 +302,32 @@ function renderDBTTree(dbtFiles) {
     Object.keys(dbtFiles).forEach(path => {
         let parts = path.split('/');
         let node = tree;
-        for (let i=0; i<parts.length; i++) {
-            if (!node[parts[i]]) node[parts[i]] = (i === parts.length-1 ? dbtFiles[path] : {});
-            node = node[parts[i]];
-        }
+
+        parts.forEach((p,i)=>{
+            if (!node[p]) node[p] = (i === parts.length-1 ? dbtFiles[path] : {});
+            node = node[p];
+        });
     });
 
     function renderNode(node, path="") {
         let html = "<ul>";
+
         for (let key in node) {
+
             if (typeof node[key] === "string") {
-                html += `<li>📄 ${key} <button onclick="downloadFile('${path+key}', \`${node[key].replace(/`/g,"\\`")}\`)">Download</button></li>`;
+                html += `
+                <li class="dbt-file">
+                    📄 ${key}
+                    <button onclick="downloadFile('${path+key}', \`${node[key].replace(/`/g,"\\`")}\`)">
+                        Download
+                    </button>
+                </li>`;
             } else {
                 html += `<li>📁 ${key}${renderNode(node[key], path+key+"/")}</li>`;
             }
         }
-        html += "</ul>";
-        return html;
+
+        return html + "</ul>";
     }
 
     return renderNode(tree);
@@ -372,26 +341,7 @@ function downloadFile(filename, content) {
     a.click();
 }
 
-function renderTable(data) {
-
-    if (!data || !data.length) return "<p>No data</p>";
-
-    let h = Object.keys(data[0]);
-
-    let html = "<table><tr>" + h.map(x=>`<th>${x}</th>`).join("") + "</tr>";
-
-    data.forEach(r=>{
-        html += "<tr>" + h.map(x=>{
-            if (x === "transformation") {
-                return `<td class="${r.incomplete ? 'incomplete':'complete'}">${r[x] || ""}</td>`;
-            }
-            return `<td>${r[x] || ""}</td>`;
-        }).join("") + "</tr>";
-    });
-
-    return html + "</table>";
-}
-
+/* ================= UPLOAD ================= */
 document.getElementById("uploadForm").onsubmit = async e => {
 
     e.preventDefault();

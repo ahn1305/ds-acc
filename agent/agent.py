@@ -898,7 +898,7 @@ from processing.sql_generator import SnowflakeSQLGenerator
 class DSXAgent:
 
     def __init__(self):
-        self.client = genai.Client(api_key="AIzaSyBTCVoYJYpUbEoqgIqotXXJ2ah82N-r5wg")
+        self.client = genai.Client(api_key="AIzaSyBAbu8p210wksCh0tUYPogqc2AbUnHG3Ic")
 
     # ======================================================
     # 🚀 MAIN PIPELINE
@@ -928,7 +928,7 @@ class DSXAgent:
         # STEP 3: SQL + DBT GENERATION
         # --------------------------------------
         sql_generator = SnowflakeSQLGenerator(parsed)
-        dbt_files = self.generate_dbt_project(sql_generator)
+        dbt_files = self.generate_dbt_project(sql_generator,parsed)
 
         print("\n❄️ DBT FILES GENERATED:\n")
         print(list(dbt_files.keys()) if dbt_files else "No DBT files")
@@ -966,6 +966,8 @@ class DSXAgent:
                 "target": "UNKNOWN",
                 "transformation": "No lineage found",
                 "stage": "UNKNOWN",
+                "type": "UNKNOWN",
+                "confidence": 0,
                 "incomplete": True
             }]
 
@@ -974,28 +976,96 @@ class DSXAgent:
             source = col.get("source", "")
             target = col.get("target", "")
             logic = col.get("logic")
+            stage = col.get("stage", "UNKNOWN")
 
-            # Determine transformation
+            # -----------------------------
+            # CLEAN TRANSFORMATION
+            # -----------------------------
             transformation = logic.strip() if isinstance(logic, str) else ""
-            if not transformation or transformation.lower() in ["", "null", "none"]:
-                transformation = "DIRECT_MAPPING" if source == target else f"{source} → {target}"
-
-            # Clean artifacts
             transformation = transformation.replace("\\", "").strip()
 
-            # Detect incomplete logic
+            # -----------------------------
+            # DETERMINE TYPE
+            # -----------------------------
+            if not source:
+                t_type = "SYSTEM"
+
+            elif "," in source:
+                t_type = "DERIVED"
+
+            elif "lookup" in stage.lower():
+                t_type = "LOOKUP"
+
+            elif "join" in stage.lower():
+                t_type = "JOIN"
+
+            elif source == target and not transformation:
+                t_type = "DIRECT"
+
+            else:
+                t_type = "DERIVED"
+
+            # -----------------------------
+            # DEFAULT TRANSFORMATION
+            # -----------------------------
+            if not transformation or transformation.lower() in ["", "null", "none"]:
+
+                if t_type == "DIRECT":
+                    transformation = f"{source} mapped directly"
+
+                elif t_type == "SYSTEM":
+                    transformation = f"Generated field ({target})"
+
+                else:
+                    transformation = f"{source} → {target}"
+
+            # -----------------------------
+            # 🔥 INCOMPLETE DETECTION
+            # -----------------------------
             incomplete = False
-            t = transformation.strip()
-            if t.endswith(("=", "Then", "Else", ":", "And", "Or")) or t.count("'") % 2 != 0:
+            t = transformation.lower()
+
+            if (
+                "\\" in (logic or "") or
+                "then" in t and "else" not in t or
+                "else" in t and "then" not in t or
+                t.endswith(("=", "then", "else", "and", "or")) or
+                t.count("'") % 2 != 0 or
+                ("if" in t and "then" not in t) or
+                ("," in source and t_type != "DERIVED") or
+                (t_type != "DIRECT" and "mapped directly" in t)
+            ):
                 incomplete = True
 
-            readable = f"{source} mapped directly" if transformation == "DIRECT_MAPPING" else transformation
+            # -----------------------------
+            # 🎯 CONFIDENCE SCORE
+            # -----------------------------
+            confidence = 100
 
+            if incomplete:
+                confidence -= 40
+
+            if t_type == "DERIVED":
+                confidence -= 10
+
+            if t_type == "SYSTEM":
+                confidence -= 20
+
+            if "," in source:
+                confidence -= 10
+
+            confidence = max(confidence, 0)
+
+            # -----------------------------
+            # FINAL ROW
+            # -----------------------------
             sttm.append({
-                "source": source,
+                "source": source or "SYSTEM",
                 "target": target,
-                "transformation": readable,
-                "stage": col.get("stage", ""),
+                "transformation": transformation,
+                "stage": stage,
+                "type": t_type,
+                "confidence": confidence,
                 "incomplete": incomplete
             })
 
@@ -1005,40 +1075,205 @@ class DSXAgent:
     # ❄️ FLATTEN SQL (FOR UI DISPLAY)
     # ======================================================
     def flatten_sql(self, dbt_files):
-        if not dbt_files:
-            return ""
-        all_sql = []
-        for path, sql in dbt_files.items():
-            if path.endswith(".sql"):
-                all_sql.append(f"\n-- FILE: {path}\n")
-                all_sql.append(sql)
-        return "\n".join(all_sql)
 
+        if not dbt_files:
+            return "-- No SQL generated"
+
+        all_sql = []
+
+        for path, sql in dbt_files.items():
+
+            if path.endswith(".sql") and sql:
+
+                all_sql.append(f"\n-- FILE: {path}\n{sql}")
+
+        return "\n".join(all_sql) if all_sql else "-- No SQL generated"
     # ======================================================
     # 📂 GENERATE DBT PROJECT STRUCTURE
     # ======================================================
-    def generate_dbt_project(self, sql_generator):
+    def generate_dbt_project(self, sql_generator, parsed):
 
-        # Generate SQL models from generator
-        models = sql_generator.run()  # returns dict: { "models/stg_foo.sql": "SELECT ...", ... }
+        raw_models = sql_generator.run()
 
         dbt_project = {}
 
+        # -----------------------------------
         # dbt_project.yml
+        # -----------------------------------
         dbt_project["dbt_project.yml"] = """
-name: dsx_project
-version: '1.0'
-config-version: 2
-profile: default
-target-path: target
-model-paths: ["models"]
-"""
+    name: dsx_project
+    version: '1.0'
+    config-version: 2
+    profile: default
 
-        # create folder structure and add SQL files
-        for path, sql in models.items():
-            dbt_project[path] = sql
+    model-paths: ["models"]
+
+    models:
+    dsx_project:
+        staging:
+        +materialized: view
+        intermediate:
+        +materialized: table
+        marts:
+        +materialized: table
+    """
+
+        # -----------------------------------
+        # BUILD MODELS (.sql files)
+        # -----------------------------------
+        for layer, models in raw_models.items():
+
+            for model_name, sql in models.items():
+
+                if not sql:
+                    continue
+
+                file_path = f"models/{layer}/{model_name}.sql"
+                dbt_project[file_path] = sql
+
+        # -----------------------------------
+        # ADD SOURCES + TESTS
+        # -----------------------------------
+        sources_yml = self.generate_sources_yml(parsed)
+        schema_yml = self.generate_schema_yml(raw_models)
+
+        dbt_project["models/sources.yml"] = sources_yml
+        dbt_project["models/schema.yml"] = schema_yml
 
         return dbt_project
+    
+    def generate_sources_yml(self, parsed):
+
+        stages = parsed.get("stages", {})
+        links = parsed.get("links", [])
+
+        # ----------------------------------------
+        # BUILD INPUT MAP (who feeds whom)
+        # ----------------------------------------
+        incoming_map = {stage: [] for stage in stages.keys()}
+
+        for link in links:
+            target = link.get("to")
+            source = link.get("from")
+
+            if target in incoming_map:
+                incoming_map[target].append(source)
+
+        # ----------------------------------------
+        # DETECT SOURCE STAGES
+        # ----------------------------------------
+        source_stages = []
+
+        for stage_name, stage in stages.items():
+
+            stage_type = stage.get("type", "")
+            inputs = incoming_map.get(stage_name, [])
+
+            # 🔥 RULE 1: no upstream → source
+            is_source = len(inputs) == 0
+
+            # 🔥 RULE 2: fallback type-based
+            if stage_type.lower() in [
+                "pxdataset",
+                "pxsequentialfile",
+                "pxodbcconnector",
+                "pxoracleconnector",
+                "pxjdbcconnector"
+            ]:
+                is_source = True
+
+            # 🔥 RULE 3: naming heuristic
+            if any(x in stage_name.lower() for x in ["input", "src", "source", "file"]):
+                is_source = True
+
+            if is_source:
+                source_stages.append((stage_name, stage))
+
+        # ----------------------------------------
+        # BUILD TABLES
+        # ----------------------------------------
+        tables = []
+
+        for stage_name, stage in source_stages:
+
+            columns = stage.get("outputs", [])
+
+            col_list = []
+
+            for col in columns:
+                col_list.append({
+                    "name": col.get("name"),
+                    "description": ""
+                })
+
+            tables.append({
+                "name": stage_name.lower(),
+                "identifier": stage_name,
+                "columns": col_list
+            })
+
+        # ----------------------------------------
+        # FINAL YAML
+        # ----------------------------------------
+        final = {
+            "version": 2,
+            "sources": [
+                {
+                    "name": "raw",
+                    "database": "RAW_DB",
+                    "schema": "PUBLIC",
+                    "tables": tables
+                }
+            ]
+        }
+
+        return self.to_yaml(final)
+        
+
+    
+    def generate_schema_yml(self, raw_models):
+
+        models_yaml = []
+
+        for layer, models in raw_models.items():
+
+            for model_name in models.keys():
+
+                columns = []
+
+                # 🔥 smart default tests
+                columns.append({
+                    "name": "id",
+                    "tests": ["not_null", "unique"]
+                })
+
+                columns.append({
+                    "name": "created_at",
+                    "tests": ["not_null"]
+                })
+
+                models_yaml.append({
+                    "name": model_name,
+                    "columns": columns
+                })
+
+        final = {
+            "version": 2,
+            "models": models_yaml
+        }
+
+        return self.to_yaml(final)
+    
+    def to_yaml(self, data):
+
+        try:
+            import yaml
+            return yaml.dump(data, sort_keys=False)
+        except:
+            # fallback if PyYAML not installed
+            return json.dumps(data, indent=2)
+                
+
 
     # ======================================================
     # 📄 DOCUMENTATION GENERATION (LLM)

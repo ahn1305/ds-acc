@@ -40,7 +40,8 @@ class LineageEngine:
                 lineage.append({
                     "source": ", ".join(sources),
                     "target": target,
-                    "transformation": derivation or "Direct mapping"
+                    "transformation": derivation or "Direct mapping",
+                     "stage": stage_name
                 })
 
         return lineage

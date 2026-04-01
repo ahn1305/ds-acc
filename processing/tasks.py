@@ -761,7 +761,6 @@
 #         raise self.retry(exc=e, countdown=10)
 
 
-
 from celery import shared_task
 import os
 import traceback
@@ -775,18 +774,24 @@ from processing.sttm_excel import generate_sttm_excel
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
+
 # =========================================================
 # WEBSOCKET
 # =========================================================
 def send_ws_update(batch_id, data):
     channel_layer = get_channel_layer()
+
     async_to_sync(channel_layer.group_send)(
         f"batch_{batch_id}",
-        {"type": "send_update", "data": data}
+        {
+            "type": "send_update",
+            "data": data
+        }
     )
 
+
 # =========================================================
-# SAVE DBT FILES PHYSICALLY
+# SAVE DBT FILES (FIXED STRUCTURE SUPPORT)
 # =========================================================
 def save_dbt_files(file_obj, dbt_files):
 
@@ -799,10 +804,12 @@ def save_dbt_files(file_obj, dbt_files):
     for path, content in dbt_files.items():
         try:
             full_path = os.path.join(base, path)
+
+            # ensure folders exist
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-            # Convert non-string content to string
-            if isinstance(content, dict) or isinstance(content, list):
+            # 🔥 ensure string content
+            if isinstance(content, (dict, list)):
                 content = json.dumps(content, indent=2)
             elif content is None:
                 content = ""
@@ -816,6 +823,7 @@ def save_dbt_files(file_obj, dbt_files):
             print(f"❌ FAILED TO WRITE FILE: {path}")
             print("ERROR:", str(e))
 
+
 # =========================================================
 # PROCESS BATCH
 # =========================================================
@@ -824,11 +832,13 @@ def process_batch(batch_id):
     from processing.tasks import process_file
 
     files = DSXFile.objects.filter(batch_id=batch_id)
+
     for f in files:
         process_file.delay(f.id)
 
+
 # =========================================================
-# PROCESS FILE
+# PROCESS FILE (FULL FIXED PIPELINE)
 # =========================================================
 @shared_task(bind=True, max_retries=2)
 def process_file(self, file_id):
@@ -838,69 +848,89 @@ def process_file(self, file_id):
     try:
         file_obj = DSXFile.objects.get(id=file_id)
 
-        # -------------------------------
+        # ==================================================
         # START
-        # -------------------------------
+        # ==================================================
         file_obj.status = "PROCESSING"
         file_obj.save()
+
         send_ws_update(file_obj.batch.id, {
             "file_id": file_obj.id,
+            "file_name": file_obj.file.name,  # ✅ FIX undefined
             "status": "PROCESSING",
             "step": "START"
         })
 
-        # -------------------------------
+        # ==================================================
         # PARSING
-        # -------------------------------
+        # ==================================================
         parser = DSXParser()
         parsed = parser.parse(file_obj.file.path)
-        send_ws_update(file_obj.batch.id, {"file_id": file_obj.id, "step": "PARSING"})
 
-        # -------------------------------
+        send_ws_update(file_obj.batch.id, {
+            "file_id": file_obj.id,
+            "step": "PARSING"
+        })
+
+        # ==================================================
         # AI PROCESSING
-        # -------------------------------
+        # ==================================================
         agent = DSXAgent()
         result = agent.run(parsed)
-        send_ws_update(file_obj.batch.id, {"file_id": file_obj.id, "step": "AI_PROCESSING"})
 
-        # -------------------------------
-        # STTM EXCEL
-        # -------------------------------
-        sttm = result.get("sttm", [])
+        send_ws_update(file_obj.batch.id, {
+            "file_id": file_obj.id,
+            "step": "AI_PROCESSING"
+        })
+
+        # ==================================================
+        # STTM
+        # ==================================================
+        sttm = result.get("sttm", []) or []
+
         excel_path = generate_sttm_excel(file_obj, sttm)
+
         send_ws_update(file_obj.batch.id, {
             "file_id": file_obj.id,
             "step": "STTM_GENERATED",
             "sttm": sttm
         })
 
-        # -------------------------------
-        # DBT FILES
-        # -------------------------------
-        dbt_files = result.get("dbt_files", {})
+        # ==================================================
+        # DBT FILES (WRITE TO DISK)
+        # ==================================================
+        dbt_files = result.get("dbt_files", {}) or {}
+
         save_dbt_files(file_obj, dbt_files)
 
-        # Flatten SQL for UI
+        # ==================================================
+        # SQL (CRITICAL FIX)
+        # ==================================================
         snowflake_sql = result.get("snowflake_sql", "")
+
+        if not snowflake_sql or snowflake_sql.strip() == "":
+            snowflake_sql = "-- No SQL generated"
+
         send_ws_update(file_obj.batch.id, {
             "file_id": file_obj.id,
             "step": "SQL_GENERATED",
             "snowflake_sql": snowflake_sql
         })
 
-        # -------------------------------
+        # ==================================================
         # DOCUMENTATION
-        # -------------------------------
-        documentation = result.get("documentation", "")
+        # ==================================================
+        documentation = result.get("documentation", "") or ""
+
         send_ws_update(file_obj.batch.id, {
             "file_id": file_obj.id,
             "step": "DOC_GENERATED",
             "documentation": documentation
         })
 
-        # -------------------------------
+        # ==================================================
         # SAVE TO DB
-        # -------------------------------
+        # ==================================================
         file_obj.sttm_json = sttm
         file_obj.snowflake_sql = snowflake_sql
         file_obj.documentation = documentation
@@ -908,28 +938,33 @@ def process_file(self, file_id):
         file_obj.status = "DONE"
         file_obj.save()
 
-        # -------------------------------
-        # FINAL WS UPDATE
-        # -------------------------------
+        # ==================================================
+        # FINAL UPDATE (FULL PAYLOAD)
+        # ==================================================
         send_ws_update(file_obj.batch.id, {
             "file_id": file_obj.id,
+            "file_name": file_obj.file.name,  # ✅ FIX
             "status": "DONE",
             "step": "DONE",
             "sttm": sttm,
             "snowflake_sql": snowflake_sql,
             "documentation": documentation,
-            "dbt_files": dbt_files
+            "dbt_files": dbt_files  # ✅ UI TREE FIX
         })
 
     except Exception as e:
+
         error_msg = str(e)
+
         print("\n===== ERROR =====\n", traceback.format_exc())
 
         if file_obj:
             file_obj.status = "FAILED"
             file_obj.save()
+
             send_ws_update(file_obj.batch.id, {
                 "file_id": file_obj.id,
+                "file_name": file_obj.file.name if file_obj else "",
                 "status": "FAILED",
                 "error": error_msg
             })
