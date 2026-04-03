@@ -6,6 +6,7 @@ from django.db import models
 class BatchJob(models.Model):
     status = models.CharField(max_length=50, default="PENDING")
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
 
 
 
@@ -22,10 +23,19 @@ class DSXFile(models.Model):
 
     sttm_json = models.JSONField(null=True, blank=True)
     sttm_file = models.FileField(upload_to="sttm/", null=True, blank=True)
+    sttm_excel = models.FileField(upload_to="sttm/", null=True, blank=True)
 
     snowflake_sql = models.TextField(null=True, blank=True)
     dbt_sql = models.TextField(null=True, blank=True)
+    dbt_files = models.JSONField(null=True, blank=True)
+    
+    data_model = models.TextField(null=True, blank=True)
+    er_diagram = models.TextField(null=True, blank=True)
+    
     documentation = models.TextField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
 
 
 
@@ -38,5 +48,11 @@ class InformaticaFile(models.Model):
     sttm_json = models.JSONField(null=True, blank=True)
     snowflake_sql = models.TextField(null=True, blank=True)
     documentation = models.TextField(null=True, blank=True)
+    
+    data_model = models.TextField(null=True, blank=True)
+    er_diagram = models.TextField(null=True, blank=True)
+    parsed_graph = models.JSONField(null=True, blank=True)
+    lineage_data = models.JSONField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)

@@ -17,35 +17,234 @@ body {
     padding:20px;
 }
 
-h2 { color:#38bdf8; }
+h2 { color:#38bdf8; margin-bottom: 20px; }
+
+.upload-section {
+    background:rgba(30,41,59,0.8);
+    padding:30px;
+    border-radius:14px;
+    margin-bottom:30px;
+    border:2px dashed #38bdf8;
+    text-align:center;
+}
+
+.upload-section input {
+    display:none;
+}
+
+.upload-section label {
+    display:block;
+    padding:20px;
+    cursor:pointer;
+    background:rgba(56,189,248,0.1);
+    border-radius:8px;
+    margin-bottom:15px;
+    transition:all 0.3s;
+}
+
+.upload-section label:hover {
+    background:rgba(56,189,248,0.2);
+    transform:scale(1.02);
+}
+
+.upload-section button {
+    background:#38bdf8;
+    border:none;
+    padding:10px 30px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+    color:black;
+    font-size:16px;
+}
+
+.upload-section button:hover {
+    background:#0ea5e9;
+}
+
+.batch-container {
+    background:rgba(30,41,59,0.8);
+    padding:20px;
+    border-radius:14px;
+}
+
+.batch-stats {
+    display:flex;
+    gap:20px;
+    margin-bottom:20px;
+    background:rgba(15,23,42,0.9);
+    padding:15px;
+    border-radius:8px;
+    border-left:4px solid #38bdf8;
+}
+
+.stat {
+    flex:1;
+}
+
+.file-card {
+    background:rgba(30,41,59,0.6);
+    padding:20px;
+    border-radius:8px;
+    border:1px solid #334155;
+}
+
+.file-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+    gap:15px;
+}
+
+.file-header h3 {
+    margin:0;
+    color:#38bdf8;
+}
+
+.file-header .status {
+    padding:5px 12px;
+    border-radius:20px;
+    font-size:12px;
+}
+
+.status.processing { background:#f59e0b; }
+.status.done { background:#22c55e; }
+.status.failed { background:#ef4444; }
+
+.file-nav {
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+
+.nav-btn {
+    background:#334155;
+    border:1px solid #475569;
+    padding:6px 12px;
+    border-radius:6px;
+    color:#e2e8f0;
+    cursor:pointer;
+    transition:all 0.2s;
+}
+
+.nav-btn:hover {
+    background:#475569;
+    border-color:#64748b;
+}
+
+.file-counter {
+    background:#475569;
+    padding:6px 12px;
+    border-radius:6px;
+    font-weight:bold;
+    min-width:40px;
+    text-align:center;
+}
+
+.progress {
+    height:6px;
+    background:#334155;
+    margin:15px 0;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.progress-inner {
+    height:100%;
+    background:linear-gradient(90deg,#38bdf8,#6366f1);
+    transition:width 0.3s;
+}
+
+.timing-info {
+    background:rgba(56,189,248,0.1);
+    padding:10px;
+    border-radius:6px;
+    margin:10px 0;
+    border-left:3px solid #38bdf8;
+}
+
+.error-box {
+    background:rgba(239,68,68,0.15);
+    padding:15px;
+    border-radius:6px;
+    border-left:3px solid #ef4444;
+    margin:10px 0;
+}
+
+.file-thumbnails {
+    margin-top:30px;
+}
+
+.file-thumbnails h4 {
+    color:#64748b;
+    margin-bottom:10px;
+}
+
+.thumbnails-scroll {
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding-bottom:10px;
+}
+
+.thumbnail {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+    padding:10px;
+    border:2px solid #334155;
+    border-radius:6px;
+    background:rgba(30,41,59,0.6);
+    cursor:pointer;
+    transition:all 0.2s;
+    min-width:80px;
+    white-space:nowrap;
+}
+
+.thumbnail:hover {
+    border-color:#475569;
+    background:rgba(30,41,59,0.9);
+}
+
+.thumbnail.active {
+    border-color:#38bdf8;
+    background:rgba(56,189,248,0.1);
+}
+
+.thumb-status {
+    width:8px;
+    height:8px;
+    border-radius:50%;
+}
+
+.thumb-status.done { background:#22c55e; }
+.thumb-status.failed { background:#ef4444; }
+.thumb-status.processing { background:#f59e0b; animation: pulse 2s infinite; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.thumb-num {
+    font-weight:bold;
+    font-size:12px;
+    color:#38bdf8;
+}
+
+.thumb-name {
+    font-size:11px;
+    color:#94a3b8;
+}
 
 .card {
     background:rgba(30,41,59,0.8);
     padding:20px;
     margin-top:20px;
     border-radius:14px;
-}
-
-.status {
-    padding:5px 12px;
-    border-radius:20px;
-    font-size:12px;
-}
-
-.processing { background:#f59e0b; }
-.done { background:#22c55e; }
-.failed { background:#ef4444; }
-
-.progress {
-    height:6px;
-    background:#334155;
-    margin-top:10px;
-    border-radius:10px;
-}
-
-.progress-inner {
-    height:100%;
-    background:linear-gradient(90deg,#38bdf8,#6366f1);
 }
 
 .tabs { margin-top:15px; }
@@ -56,6 +255,13 @@ h2 { color:#38bdf8; }
     cursor:pointer;
     background:#334155;
     border-radius:6px;
+    border:none;
+    color:#e2e8f0;
+    transition:all 0.2s;
+}
+
+.tab-btn:hover {
+    background:#475569;
 }
 
 .tab-btn.active {
@@ -77,14 +283,9 @@ pre {
     padding:12px;
     border-radius:8px;
     overflow-x:auto;
+    max-height:400px;
+    overflow-y:auto;
 }
-
-/* STTM */
-tr.incomplete-row { background: rgba(239, 68, 68, 0.15); }
-tr.complete-row { background: rgba(34, 197, 94, 0.08); }
-
-.incomplete { color:#ef4444; font-weight:bold; }
-.complete { color:#22c55e; }
 
 table {
     width:100%;
@@ -95,9 +296,12 @@ table {
 td, th {
     border:1px solid #334155;
     padding:6px;
+    text-align:left;
 }
 
-/* DBT TREE */
+tr.incomplete-row { background: rgba(239, 68, 68, 0.15); }
+tr.complete-row { background: rgba(34, 197, 94, 0.08); }
+
 ul {
     list-style-type:none;
     padding-left:20px;
@@ -114,6 +318,12 @@ button {
     border-radius:6px;
     cursor:pointer;
     margin-left:10px;
+    color:black;
+    font-weight:bold;
+}
+
+button:hover {
+    background:#0ea5e9;
 }
 </style>
 </head>
@@ -125,8 +335,11 @@ button {
 <h2>🚀 DSX → DBT Platform</h2>
 
 <form id="uploadForm">
-    <input type="file" multiple required />
-    <button>Upload</button>
+    <div class="upload-section">
+        <input type="file" id="fileInput" multiple webkitdirectory directory accept="*" />
+        <label for="fileInput">📁 Select Folder (or drag & drop files)</label>
+        <button type="submit">🚀 Upload</button>
+    </div>
 </form>
 
 <div id="dashboard"></div>
@@ -135,7 +348,7 @@ button {
 
 <script>
 
-let socket, batchId, files = {};
+let socket, batchId, files = {}, currentFileId = null, fileIds = [];
 
 function connectWS(batchId) {
     let protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -153,16 +366,29 @@ function handleUpdate(data) {
         files[id] = {
             name: data.file_name || `File ${id}`,
             progress: 0,
-            content: {}
+            content: {},
+            status: "PROCESSING"
         };
+        fileIds.push(id);
+        if (!currentFileId) {
+            currentFileId = id;
+        }
     }
 
     let f = files[id];
 
     if (data.step === "DONE") {
         f.progress = 100;
+        f.status = "DONE";
+    } else if (data.error) {
+        f.status = "FAILED";
+        f.error = data.error;
     } else if (data.step) {
-        f.progress += 15;
+        f.progress += 14;
+    }
+
+    if (data.status) {
+        f.status = data.status;
     }
 
     Object.assign(f.content, data);
@@ -171,35 +397,115 @@ function handleUpdate(data) {
 }
 
 function render() {
-
     let html = "";
+    
+    // Batch Summary
+    let currentFile = files[currentFileId];
+    if (!currentFile) return;
+    
+    let counts = {
+        total: fileIds.length,
+        done: Object.values(files).filter(f => f.status === "DONE").length,
+        failed: Object.values(files).filter(f => f.status === "FAILED").length,
+        processing: Object.values(files).filter(f => f.status === "PROCESSING").length
+    };
 
-    Object.entries(files).forEach(([id,f]) => {
+    html += `
+    <div class="batch-container">
+        <div class="batch-stats">
+            <div class="stat">📊 Total Files: <strong>${counts.total}</strong></div>
+            <div class="stat">✅ Completed: <strong style="color:#22c55e;">${counts.done}</strong></div>
+            <div class="stat">⏳ Processing: <strong style="color:#f59e0b;">${counts.processing}</strong></div>
+            <div class="stat">❌ Failed: <strong style="color:#ef4444;">${counts.failed}</strong></div>
+        </div>
 
-        html += `
-        <div class="card">
-
-            <h3>${f.name}</h3>
-
-            <span class="status ${f.content.status === "DONE" ? "done" :
-                                  f.content.status === "FAILED" ? "failed" : "processing"}">
-                ${f.content.status || "Processing"}
-            </span>
-
-            <div class="progress">
-                <div class="progress-inner" style="width:${f.progress}%"></div>
+        <div class="file-card">
+            <div class="file-header">
+                <div>
+                    <h3>${currentFile.name}</h3>
+                    <span class="status ${currentFile.status === "DONE" ? "done" : 
+                                        currentFile.status === "FAILED" ? "failed" : "processing"}">
+                        ${currentFile.status || "Processing"}
+                    </span>
+                </div>
+                
+                <div class="file-nav">
+                    <button onclick="prevFile()" class="nav-btn">← Previous</button>
+                    <span class="file-counter">${fileIds.indexOf(currentFileId) + 1} / ${fileIds.length}</span>
+                    <button onclick="nextFile()" class="nav-btn">Next →</button>
+                </div>
             </div>
 
-            ${renderTabs(id,f)}
+            <div class="progress">
+                <div class="progress-inner" style="width:${currentFile.progress}%"></div>
+            </div>
+
+            ${currentFile.content.processing_time_seconds ? `
+                <div class="timing-info">
+                    ⏱️ Processing Time: <strong>${currentFile.content.processing_time_seconds}s</strong>
+                </div>
+            ` : ''}
+
+            ${currentFile.status === "FAILED" ? `
+                <div class="error-box">
+                    <strong>❌ Error:</strong> ${currentFile.error || "Unknown error"}
+                </div>
+            ` : `
+                ${renderTabs(currentFileId, currentFile)}
+            `}
 
         </div>
-        `;
-    });
+
+        <div class="file-thumbnails">
+            <h4>All Files</h4>
+            <div class="thumbnails-scroll">
+                ${fileIds.map((id, idx) => `
+                    <button class="thumbnail ${id === currentFileId ? 'active' : ''}" 
+                            onclick="switchFile(${id})"
+                            title="${files[id].name}">
+                        <span class="thumb-status ${files[id].status === 'DONE' ? 'done' : 
+                                                   files[id].status === 'FAILED' ? 'failed' : 'processing'}"></span>
+                        <span class="thumb-num">${idx + 1}</span>
+                        <span class="thumb-name">${files[id].name.substring(0, 15)}${files[id].name.length > 15 ? '...' : ''}</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    </div>
+    `;
 
     document.getElementById("dashboard").innerHTML = html;
 }
 
+function switchFile(fileId) {
+    currentFileId = fileId;
+    render();
+}
+
+function nextFile() {
+    let idx = fileIds.indexOf(currentFileId);
+    if (idx < fileIds.length - 1) {
+        currentFileId = fileIds[idx + 1];
+        render();
+    }
+}
+
+function prevFile() {
+    let idx = fileIds.indexOf(currentFileId);
+    if (idx > 0) {
+        currentFileId = fileIds[idx - 1];
+        render();
+    }
+}
+
 function renderTabs(id,f) {
+
+    // Show error if exists
+    if (f.content.error) {
+        return `<div style="background:rgba(239,68,68,0.15); padding:10px; border-radius:6px; margin-top:10px;">
+                  <strong>❌ Error:</strong> ${f.content.error}
+                </div>`;
+    }
 
     return `
     <div class="tabs">
@@ -207,6 +513,8 @@ function renderTabs(id,f) {
         <div>
             <span class="tab-btn active" onclick="openTab(event,'sttm_${id}')">STTM</span>
             <span class="tab-btn" onclick="openTab(event,'sql_${id}')">SQL</span>
+            <span class="tab-btn" onclick="openTab(event,'dm_${id}')">Data Model</span>
+            <span class="tab-btn" onclick="openTab(event,'er_${id}')">ER Diagram</span>
             <span class="tab-btn" onclick="openTab(event,'doc_${id}')">Docs</span>
             <span class="tab-btn" onclick="openTab(event,'dbt_${id}')">DBT</span>
         </div>
@@ -217,6 +525,14 @@ function renderTabs(id,f) {
 
         <div id="sql_${id}" class="tab-content">
             ${renderSQL(f.content)}
+        </div>
+
+        <div id="dm_${id}" class="tab-content">
+            ${renderDM(f.content)}
+        </div>
+
+        <div id="er_${id}" class="tab-content">
+            ${renderER(f.content)}
         </div>
 
         <div id="doc_${id}" class="tab-content">
@@ -232,13 +548,15 @@ function renderTabs(id,f) {
 }
 
 function openTab(evt, id) {
-    let parent = evt.target.closest(".card");
+    let parent = evt.target.closest(".file-card");
 
-    parent.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
-    parent.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    if (parent) {
+        parent.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+        parent.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
 
-    parent.querySelector("#" + id).classList.add("active");
-    evt.target.classList.add("active");
+        parent.querySelector("#" + id).classList.add("active");
+        evt.target.classList.add("active");
+    }
 }
 
 /* ================= STTM ================= */
@@ -281,7 +599,28 @@ function renderSTTM(c) {
 /* ================= SQL ================= */
 function renderSQL(c) {
     if (!c.snowflake_sql) return "<p>No SQL generated</p>";
-    return `<pre>${c.snowflake_sql}</pre>`;
+    let btn = c.snowflake_sql ? `<button onclick="downloadFile('snowflake_${c.file_id}.sql', \`${c.snowflake_sql.replace(/`/g,"\\`")}\`)">Download SQL</button>` : "";
+    return `<pre>${c.snowflake_sql}</pre>${btn}`;
+}
+
+function renderDM(c) {
+    if (!c.data_model) return "<p>No Data Model generated</p>";
+    return `<pre>${c.data_model}</pre>`;
+}
+
+function renderER(c) {
+    if (!c.er_diagram) return "<p>No ER Diagram generated</p>";
+    
+    // Check if it's a URL/image or text content
+    if (c.er_diagram.startsWith("http") || c.er_diagram.startsWith("/media")) {
+        return `<img src="${c.er_diagram}" alt="ER Diagram" style="max-width:100%; height:auto;" />`;
+    } else if (c.er_diagram.includes("erDiagram") || c.er_diagram.includes("graph")) {
+        // Render as Mermaid diagram or code
+        return `<pre>${c.er_diagram}</pre>`;
+    } else {
+        // Render as plain text
+        return `<pre>${c.er_diagram}</pre>`;
+    }
 }
 
 /* ================= DOC ================= */
@@ -346,17 +685,44 @@ document.getElementById("uploadForm").onsubmit = async e => {
 
     e.preventDefault();
 
+    let fileInput = document.getElementById("fileInput");
+    let filesInput = fileInput.files;
+    
+    if (filesInput.length === 0) {
+        alert("Please select files or a folder");
+        return;
+    }
+
     let fd = new FormData();
-    let filesInput = document.querySelector("input").files;
 
     for (let f of filesInput) fd.append("files", f);
+
+    document.getElementById("dashboard").innerHTML = `
+        <div style="text-align:center; padding:40px;">
+            <div style="font-size:24px; margin-bottom:20px;">⏳ Uploading ${filesInput.length} file(s)...</div>
+            <div class="progress" style="width:100%; height:8px;">
+                <div class="progress-inner" style="width:0%; animation:upload-anim 2s infinite;"></div>
+            </div>
+            <style>
+                @keyframes upload-anim { 0% { width:0%; } 100% { width:100%; } }
+            </style>
+        </div>
+    `;
 
     let res = await fetch("/upload/", { method:"POST", body:fd });
     let data = await res.json();
 
     batchId = data.batch_id;
+    fileIds = [];
+    files = {};
+    currentFileId = null;
 
-    document.getElementById("dashboard").innerHTML = "Processing...";
+    document.getElementById("dashboard").innerHTML = `
+        <div style="text-align:center; padding:40px;">
+            <div style="font-size:24px; margin-bottom:10px;">🚀 Processing ${data.file_count} file(s)...</div>
+            <p style="color:#94a3b8;">Batch ID: ${batchId}</p>
+        </div>
+    `;
 
     connectWS(batchId);
 };

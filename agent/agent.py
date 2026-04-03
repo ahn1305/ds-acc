@@ -1,895 +1,5 @@
-# # from google import genai
-# # import json
-# # from processing.lineage import LineageEngine
-# # from processing.sql_generator import SnowflakeSQLGenerator
-
-
-# # class DSXAgent:
-
-# #     def __init__(self):
-# #         self.client = genai.Client(api_key="YOUR_API_KEY")
-
-# #     # ======================================================
-# #     # 🚀 MAIN PIPELINE
-# #     # ======================================================
-# #     def run(self, parsed):
-
-# #         print("\n🚀 ===== DSX AGENT STARTED =====\n")
-
-# #         # --------------------------------------
-# #         # STEP 1: LINEAGE
-# #         # --------------------------------------
-# #         lineage_engine = LineageEngine(parsed)
-# #         lineage = lineage_engine.run()
-
-# #         print("\n🔥 LINEAGE OUTPUT:\n")
-# #         for l in lineage:
-# #             print(l)
-
-# #         # --------------------------------------
-# #         # STEP 2: STTM
-# #         # --------------------------------------
-# #         sttm = self.generate_sttm_from_lineage(lineage)
-
-# #         print("\n📊 STTM GENERATED:\n")
-# #         print(json.dumps(sttm, indent=2))
-
-# #         # --------------------------------------
-# #         # STEP 3: LLM REFINEMENT (OPTIONAL)
-# #         # --------------------------------------
-# #         refined_sttm = self.refine_with_llm(sttm)
-
-# #         print("\n🧠 REFINED STTM:\n")
-# #         print(json.dumps(refined_sttm, indent=2))
-
-# #         # --------------------------------------
-# #         # STEP 4: SQL + DBT GENERATION
-# #         # --------------------------------------
-# #         sql_engine = SnowflakeSQLGenerator(parsed)
-# #         dbt_models = sql_engine.run()
-
-# #         print("\n❄️ DBT MODELS GENERATED:\n")
-# #         print(json.dumps(dbt_models, indent=2))
-
-# #         # --------------------------------------
-# #         # STEP 5: RAW SQL (FLATTENED VIEW)
-# #         # --------------------------------------
-# #         snowflake_sql = self.flatten_sql(dbt_models)
-
-# #         # --------------------------------------
-# #         # STEP 6: DOCUMENTATION
-# #         # --------------------------------------
-# #         documentation = self.generate_documentation(parsed, refined_sttm)
-
-# #         print("\n📄 DOCUMENTATION:\n")
-# #         print(documentation)
-
-# #         print("\n✅ ===== PIPELINE COMPLETED =====\n")
-
-# #         return {
-# #             "sttm": refined_sttm,
-# #             "snowflake_sql": snowflake_sql,
-# #             "dbt_sql": dbt_models,
-# #             "documentation": documentation
-# #         }
-
-# #     # ======================================================
-# #     # 📊 STTM GENERATION
-# #     # ======================================================
-# #     def generate_sttm_from_lineage(self, lineage):
-
-# #         if not lineage:
-# #             return [{
-# #                 "source": "UNKNOWN",
-# #                 "target": "UNKNOWN",
-# #                 "transformation": "No lineage found"
-# #             }]
-
-# #         return lineage
-
-# #     # ======================================================
-# #     # 🧠 LLM REFINEMENT
-# #     # ======================================================
-# #     def refine_with_llm(self, sttm):
-
-# #         if not sttm:
-# #             return sttm
-
-# #         prompt = f"""
-# # You are a senior data engineer.
-
-# # Improve transformation descriptions to be business-friendly.
-
-# # STRICT JSON FORMAT:
-# # [
-# #   {{
-# #     "source": "",
-# #     "target": "",
-# #     "transformation": ""
-# #   }}
-# # ]
-
-# # Input:
-# # {json.dumps(sttm)}
-# # """
-
-# #         try:
-# #             response = self.client.models.generate_content(
-# #                 model="gemini-3.1-flash-lite-preview",
-# #                 contents=prompt
-# #             )
-
-# #             print("\n🧠 LLM RAW OUTPUT:\n")
-# #             print(response.text)
-
-# #             text = response.text.strip()
-
-# #             if "```" in text:
-# #                 text = text.split("```")[1]
-
-# #             text = text.replace("json", "").strip()
-
-# #             refined = json.loads(text)
-
-# #             if isinstance(refined, list):
-# #                 return refined
-
-# #             return sttm
-
-# #         except Exception as e:
-# #             print("⚠️ LLM failed:", e)
-# #             return sttm
-
-# #     # ======================================================
-# #     # ❄️ FLATTEN SQL (FOR UI DISPLAY)
-# #     # ======================================================
-# #     def flatten_sql(self, dbt_models):
-
-# #         all_sql = []
-
-# #         for layer, models in dbt_models.items():
-# #             all_sql.append(f"\n-- ================= {layer.upper()} =================\n")
-
-# #             for name, sql in models.items():
-# #                 all_sql.append(f"\n-- MODEL: {name}\n")
-# #                 all_sql.append(sql)
-
-# #         return "\n".join(all_sql)
-
-# #     # ======================================================
-# #     # 📄 DOCUMENTATION GENERATOR
-# #     # ======================================================
-# #     def generate_documentation(self, parsed, sttm):
-
-# #         doc = []
-
-# #         doc.append(f"Job Name: {parsed.get('job_name')}\n")
-
-# #         doc.append("\n📊 SOURCE → TARGET MAPPING:\n")
-
-# #         for row in sttm:
-# #             doc.append(
-# #                 f"{row['source']} → {row['target']} | {row['transformation']}"
-# #             )
-
-# #         doc.append("\n🏗️ STAGES:\n")
-
-# #         for stage, details in parsed["stages"].items():
-# #             doc.append(f"{stage} ({details['type']})")
-
-# #         return "\n".join(doc)
-
-
-# import os
-# import json
-# from google import genai
-
-
-# class DSXAgent:
-
-#     def __init__(self):
-#         self.client = genai.Client(api_key="AIzaSyBTCVoYJYpUbEoqgIqotXXJ2ah82N-r5wg")
-
-#     # =========================================================
-#     # MAIN ENTRY
-#     # =========================================================
-#     def run(self, parsed):
-
-#         print("\n===== PARSED INPUT =====\n", parsed)
-
-#         sttm = self.generate_sttm(parsed)
-
-#         snowflake_sql, dbt_files = self.generate_dbt_sql(parsed, sttm)
-
-#         documentation = self.generate_documentation(parsed, sttm)
-
-#         return {
-#             "sttm": sttm,
-#             "snowflake_sql": snowflake_sql,
-#             "dbt_files": dbt_files,
-#             "documentation": documentation
-#         }
-
-
-#     # =========================================================
-#     # STTM GENERATION (ROBUST)
-#     # =========================================================
-#     def generate_sttm(self, parsed):
-
-#         sttm = []
-
-#         try:
-#             stages = parsed.get("stages", {})
-
-#             # ✅ iterate correctly over dict
-#             for stage_name, stage_data in stages.items():
-
-#                 outputs = stage_data.get("outputs", [])
-
-#                 for col in outputs:
-
-#                     col_name = col.get("name")
-
-#                     derivation = col.get("derivation")
-
-#                     # -------------------------------
-#                     # DETECT SOURCE
-#                     # -------------------------------
-#                     if derivation:
-#                         source = derivation
-#                     else:
-#                         source = f"{stage_name}.{col_name}"
-
-#                     # -------------------------------
-#                     # INCOMPLETE LOGIC DETECTION
-#                     # -------------------------------
-#                     incomplete = False
-
-#                     if not derivation:
-#                         incomplete = True
-
-#                     elif isinstance(derivation, str):
-#                         d = derivation.strip()
-
-#                         # broken DSX expressions
-#                         if d.endswith("\\") or d.endswith(":") or d.endswith("="):
-#                             incomplete = True
-
-#                         if "Then \\" in d or "Else \\" in d:
-#                             incomplete = True
-
-#                         if d.lower() in ["", "null", "none"]:
-#                             incomplete = True
-
-#                     # -------------------------------
-#                     # TRANSFORMATION CLEANUP
-#                     # -------------------------------
-#                     transformation = derivation if derivation else "DIRECT_MAPPING"
-
-#                     # -------------------------------
-#                     # APPEND
-#                     # -------------------------------
-#                     sttm.append({
-#                         "source": source,
-#                         "target": col_name,
-#                         "transformation": transformation,
-#                         "stage": stage_name,
-#                         "incomplete": incomplete   # 🔥 UI highlight
-#                     })
-
-#         except Exception as e:
-#             print("❌ STTM ERROR:", str(e))
-
-#         # -------------------------------
-#         # FALLBACK
-#         # -------------------------------
-#         if not sttm:
-#             sttm = [{
-#                 "source": "UNKNOWN",
-#                 "target": "UNKNOWN",
-#                 "transformation": "FAILED_PARSE",
-#                 "stage": "UNKNOWN",
-#                 "incomplete": True
-#             }]
-
-#         print("\n===== STTM SAMPLE =====\n", sttm[:5])
-
-#         return sttm
-
-
-
-#     # =========================================================
-#     # SNOWFLAKE + DBT GENERATION (LLM POWERED)
-#     # =========================================================
-#     def generate_dbt_sql(self, parsed, sttm):
-
-#         prompt = f"""
-# You are a senior data engineer.
-
-# Convert this ETL logic into Snowflake SQL using DBT standards.
-
-# ### INPUT:
-
-# Job Name:
-# {parsed.get("job_name")}
-
-# Stages:
-# {parsed.get("stages")}
-
-# STTM:
-# {sttm}
-
-# ---
-
-# ### REQUIREMENTS:
-
-# - Generate clean Snowflake SQL
-# - Use CTEs for each stage
-# - Handle joins properly
-# - Apply transformations
-# - Final SELECT should represent target table
-
-# ---
-
-# ### ALSO GENERATE:
-
-# Return DBT project structure as JSON:
-
-# {{
-#   "models/staging/stg_x.sql": "...",
-#   "models/marts/fact_x.sql": "...",
-#   "models/schema.yml": "..."
-# }}
-
-# ---
-
-# ### OUTPUT FORMAT:
-
-# SQL:
-# <sql_here>
-
-# DBT_FILES:
-# <json_here>
-# """
-
-#         response = self.client.models.generate_content(
-#             model="gemini-3.1-flash-lite-preview",
-#             contents=prompt
-#         )
-
-#         text = response.text
-
-#         print("\n===== LLM SQL OUTPUT =====\n")
-#         print(text)
-#         print("\n=================================\n")
-
-#         sql = ""
-#         dbt_files = {}
-
-#         try:
-#             if "SQL:" in text:
-#                 sql = text.split("SQL:")[1].split("DBT_FILES:")[0].strip()
-
-#             if "DBT_FILES:" in text:
-#                 json_part = text.split("DBT_FILES:")[1].strip()
-#                 dbt_files = json.loads(json_part)
-
-#         except Exception as e:
-#             print("SQL PARSE ERROR:", str(e))
-
-#         return sql, dbt_files
-
-#     # =========================================================
-#     # DOCUMENTATION (LLM)
-#     # =========================================================
-#     def generate_documentation(self, parsed, sttm):
-
-#         prompt = f"""
-# You are an expert ETL architect.
-
-# Explain this pipeline in simple, human-readable format.
-
-# ### INPUT:
-
-# Job Name:
-# {parsed.get("job_name")}
-
-# Stages:
-# {parsed.get("stages")}
-
-# STTM:
-# {sttm}
-
-# ---
-
-# ### OUTPUT:
-
-# ## Overview
-# ## Sources
-# ## Transformations
-# ## Business Rules
-# ## Target
-# ## Data Flow Summary
-
-# Make it clean and understandable.
-# """
-
-#         response = self.client.models.generate_content(
-#             model="gemini-3.1-flash-lite-preview",
-#             contents=prompt
-#         )
-
-#         doc = response.text
-
-#         print("\n===== DOCUMENTATION OUTPUT =====\n")
-#         print(doc)
-#         print("\n================================\n")
-
-#         return doc
-
-
-# # import os
-# # import re
-# # import json
-# # from google import genai
-
-
-# # class DSXAgent:
-
-# #     def __init__(self):
-# #         self.client = genai.Client(
-# #             api_key="AIzaSyBTCVoYJYpUbEoqgIqotXXJ2ah82N-r5wg"
-# #         )
-
-# #     def run(self, parsed):
-
-# #         print("\n===== PARSED INPUT =====\n", parsed)
-
-# #         sttm = self.generate_sttm(parsed)
-# #         snowflake_sql, dbt_files = self.generate_dbt_sql(parsed, sttm)
-# #         documentation = self.generate_documentation(parsed, sttm)
-
-# #         return {
-# #             "sttm": sttm,
-# #             "snowflake_sql": snowflake_sql,
-# #             "dbt_files": dbt_files,
-# #             "documentation": documentation
-# #         }
-
-# #     def generate_sttm(self, parsed):
-
-# #         sttm = []
-
-# #         try:
-# #             for stage in parsed.get("stages", []):
-# #                 for output in stage.get("outputs", []):
-# #                     for col in output.get("columns", []):
-
-# #                         source = col.get("derivation") or col.get("name")
-
-# #                         sttm.append({
-# #                             "source": source,
-# #                             "target": col.get("name"),
-# #                             "transformation": source
-# #                         })
-
-# #         except Exception as e:
-# #             print("STTM ERROR:", str(e))
-
-# #         if not sttm:
-# #             sttm = [{
-# #                 "source": "UNKNOWN",
-# #                 "target": "UNKNOWN",
-# #                 "transformation": "FAILED_PARSE"
-# #             }]
-
-# #         return sttm
-
-# #     def extract_sql(self, text):
-
-# #         match = re.search(r"```sql(.*?)```", text, re.DOTALL)
-# #         if match:
-# #             return match.group(1).strip()
-
-# #         match = re.search(r"(WITH|SELECT).*", text, re.DOTALL)
-# #         return match.group(0) if match else ""
-
-# #     def extract_json(self, text):
-
-# #         match = re.search(r"```json(.*?)```", text, re.DOTALL)
-
-# #         if match:
-# #             try:
-# #                 return json.loads(match.group(1).strip())
-# #             except Exception as e:
-# #                 print("JSON ERROR:", e)
-
-# #         return {}
-
-# #     def generate_dbt_sql(self, parsed, sttm):
-
-# #         prompt = f"""
-# # You are a senior data engineer.
-
-# # Convert this ETL logic into Snowflake SQL using DBT standards.
-
-# # ### INPUT:
-
-# # Job Name:
-# # {parsed.get("job_name")}
-
-# # Stages:
-# # {parsed.get("stages")}
-
-# # STTM:
-# # {sttm}
-
-# # ---
-
-# # ### REQUIREMENTS:
-
-# # - Generate clean Snowflake SQL
-# # - Use CTEs for each stage
-# # - Handle joins properly
-# # - Apply transformations
-# # - Final SELECT should represent target table
-
-# # ---
-
-# # ### ALSO GENERATE:
-
-# # Return DBT project structure as JSON:
-
-# # {{
-# #   "models/staging/stg_x.sql": "...",
-# #   "models/marts/fact_x.sql": "...",
-# #   "models/schema.yml": "..."
-# # }}
-
-# # ---
-
-# # ### OUTPUT FORMAT:
-
-# # SQL:
-# # <sql_here>
-
-# # DBT_FILES:
-# # <json_here>
-# # """
-
-# #         response = self.client.models.generate_content(
-# #             model="gemini-3.1-flash-lite-preview",
-# #             contents=prompt
-# #         )
-
-# #         text = response.text
-
-# #         print("\n===== LLM SQL OUTPUT =====\n")
-# #         print(text)
-# #         print("\n=================================\n")
-
-# #         sql = ""
-# #         dbt_files = {}
-
-# #         try:
-# #             if "SQL:" in text:
-# #                 sql = text.split("SQL:")[1].split("DBT_FILES:")[0].strip()
-
-# #             if "DBT_FILES:" in text:
-# #                 json_part = text.split("DBT_FILES:")[1].strip()
-# #                 dbt_files = json.loads(json_part)
-
-# #         except Exception as e:
-# #             print("SQL PARSE ERROR:", str(e))
-
-# #         return sql, dbt_files
-
-# #     def generate_documentation(self, parsed, sttm):
-
-# #         prompt = f'''
-# # Explain this ETL pipeline in simple terms.
-
-# # Job: {parsed.get("job_name")}
-# # Stages: {parsed.get("stages")}
-
-# # Sections:
-# # Overview, Sources, Transformations, Target
-# # '''
-
-# #         res = self.client.models.generate_content(
-# #             model="gemini-3.1-flash-lite-preview",
-# #             contents=prompt
-# #         )
-
-# #         return res.text
-
-
-
-# from google import genai
-# import json
-
-# from processing.lineage import LineageEngine
-# from processing.sql_generator import SnowflakeSQLGenerator
-
-
-# class DSXAgent:
-
-#     def __init__(self):
-#         self.client = genai.Client(api_key="AIzaSyBTCVoYJYpUbEoqgIqotXXJ2ah82N-r5wg")
-
-#     # ======================================================
-#     # 🚀 MAIN PIPELINE
-#     # ======================================================
-#     def run(self, parsed):
-
-#         print("\n🚀 ===== DSX AGENT STARTED =====\n")
-
-#         # --------------------------------------
-#         # STEP 1: LINEAGE ENGINE
-#         # --------------------------------------
-#         lineage_engine = LineageEngine(parsed)
-#         lineage = lineage_engine.run()
-
-#         print("\n🔥 LINEAGE OUTPUT SAMPLE:\n")
-#         print(lineage[:5] if lineage else "No lineage generated")
-
-#         # --------------------------------------
-#         # STEP 2: STTM GENERATION
-#         # --------------------------------------
-#         sttm = self.generate_sttm_from_lineage(lineage)
-
-#         print("\n📊 STTM SAMPLE:\n")
-#         print(json.dumps(sttm[:5], indent=2))
-
-#         # --------------------------------------
-#         # STEP 3: SQL + DBT GENERATION (NO LLM)
-#         # --------------------------------------
-#         sql_generator = SnowflakeSQLGenerator(parsed)
-#         dbt_files = sql_generator.run()
-
-#         print("\n❄️ DBT FILES GENERATED:\n")
-#         print(list(dbt_files.keys()) if dbt_files else "No DBT files")
-
-#         # --------------------------------------
-#         # STEP 4: FLATTEN SQL FOR UI
-#         # --------------------------------------
-#         snowflake_sql = self.flatten_sql(dbt_files)
-
-#         # --------------------------------------
-#         # STEP 5: DOCUMENTATION (LLM ONLY HERE)
-#         # --------------------------------------
-#         documentation = self.generate_documentation(parsed, sttm, snowflake_sql)
-
-#         dbt_files = self.generate_dbt_files(parsed)
-#         snowflake_sql = self.flatten_sql(dbt_files)
-
-
-#         print("\n📄 DOCUMENTATION GENERATED\n")
-
-#         print("\n✅ ===== PIPELINE COMPLETED =====\n")
-
-#         return {
-#             "sttm": sttm,
-#             "snowflake_sql": snowflake_sql,
-#             "dbt_files": dbt_files,
-#             "documentation": documentation
-#         }
-
-#     # ======================================================
-#     # 📊 STTM GENERATION FROM LINEAGE (FIXED)
-#     # ======================================================
-#     def generate_sttm_from_lineage(self, lineage):
-
-#         sttm = []
-
-#         if not lineage:
-#             return [{
-#                 "source": "UNKNOWN",
-#                 "target": "UNKNOWN",
-#                 "transformation": "No lineage found",
-#                 "stage": "UNKNOWN",
-#                 "incomplete": True
-#             }]
-
-#         for col in lineage:
-
-#             source = col.get("source", "")
-#             target = col.get("target", "")
-#             logic = col.get("logic")
-
-#             # -----------------------------
-#             # Determine transformation
-#             # -----------------------------
-#             if logic and isinstance(logic, str):
-#                 transformation = logic.strip()
-#             else:
-#                 transformation = ""
-
-#             # -----------------------------
-#             # Detect DIRECT mapping properly
-#             # -----------------------------
-#             if not transformation or transformation.lower() in ["", "null", "none"]:
-#                 if source == target:
-#                     transformation = "DIRECT_MAPPING"
-#                 else:
-#                     transformation = f"{source} → {target}"
-
-#             # -----------------------------
-#             # Clean bad DSX artifacts
-#             # -----------------------------
-#             transformation = transformation.replace("\\", "").strip()
-
-#             # -----------------------------
-#             # Detect incomplete logic
-#             # -----------------------------
-#             incomplete = False
-
-#             if isinstance(transformation, str):
-#                 t = transformation.strip()
-
-#                 if (
-#                     t.endswith(("=", "Then", "Else", ":", "And", "Or")) or
-#                     "Then" in t and "Else" not in t or
-#                     "Else" in t and "Then" not in t or
-#                     t.count("'") % 2 != 0  # unclosed quotes
-#                 ):
-#                     incomplete = True
-
-#             # -----------------------------
-#             # Normalize readable transformation
-#             # -----------------------------
-#             if transformation == "DIRECT_MAPPING":
-#                 readable = f"{source} mapped directly"
-#             else:
-#                 readable = transformation
-
-#             # -----------------------------
-#             # Append row
-#             # -----------------------------
-#             sttm.append({
-#                 "source": source,
-#                 "target": target,
-#                 "transformation": readable,
-#                 "stage": col.get("stage", ""),
-#                 "incomplete": incomplete
-#             })
-
-#         return sttm
-
-
-#     # ======================================================
-#     # ❄️ FLATTEN SQL (FOR UI DISPLAY)
-#     # ======================================================
-#     def flatten_sql(self, dbt_files):
-
-#         if not dbt_files:
-#             return ""
-
-#         all_sql = []
-
-#         for path, sql in dbt_files.items():
-
-#             if path.endswith(".sql"):
-#                 all_sql.append(f"\n-- FILE: {path}\n")
-#                 all_sql.append(sql)
-
-#         return "\n".join(all_sql)
-
-#     # ======================================================
-#     # 📄 DOCUMENTATION (LLM CLEAN VERSION)
-#     # ======================================================
-#     def generate_documentation(self, parsed, sttm, sql):
-
-#         try:
-#             prompt = f"""
-# You are a senior data engineer.
-
-# Explain this ETL pipeline in a clean, human-readable way.
-
-# Make it simple and structured:
-
-# 1. Overview
-# 2. Source Systems
-# 3. Transformations
-# 4. Business Logic
-# 5. Output
-
-# Avoid technical noise. Make it readable for humans.
-
-# STTM SAMPLE:
-# {json.dumps(sttm[:10], indent=2)}
-
-# SQL SAMPLE:
-# {sql[:1500]}
-# """
-
-#             response = self.client.models.generate_content(
-#                 model="gemini-3.1-flash-lite-preview",
-#                 contents=prompt
-#             )
-
-#             text = response.text.strip()
-
-#             return self.clean_llm_output(text)
-
-#         except Exception as e:
-#             print("⚠️ DOC GENERATION FAILED:", e)
-
-#             # fallback
-#             return self.generate_basic_doc(parsed, sttm)
-
-#     # ======================================================
-#     # 🧹 CLEAN LLM OUTPUT
-#     # ======================================================
-#     def clean_llm_output(self, text):
-
-#         if "```" in text:
-#             parts = text.split("```")
-#             text = parts[1] if len(parts) > 1 else parts[0]
-
-#         return text.replace("markdown", "").strip()
-
-#     # ======================================================
-#     # 📄 FALLBACK DOCUMENTATION
-#     # ======================================================
-#     def generate_basic_doc(self, parsed, sttm):
-
-#         doc = []
-
-#         doc.append(f"Job Name: {parsed.get('job_name')}\n")
-
-#         doc.append("\nSOURCE → TARGET:\n")
-
-#         for row in sttm[:20]:
-#             doc.append(
-#                 f"{row['source']} → {row['target']} | {row['transformation']}"
-#             )
-
-#         doc.append("\nSTAGES:\n")
-
-#         for stage, details in parsed.get("stages", {}).items():
-#             doc.append(f"{stage} ({details.get('type')})")
-
-#         return "\n".join(doc)
-
-#   # ======================================================
-#     # ❄️ DBT FILE GENERATION
-#     # ======================================================
-#     def generate_dbt_files(self, parsed):
-#         """
-#         Returns a dictionary representing a DBT project structure
-#         with SQL files and project.yml
-#         """
-#         dbt_files = {}
-
-#         # Example: models folder with one file per table
-#         for table in parsed.get("tables", []):
-#             table_name = table.get("target_table", "unknown_table")
-#             file_path = f"models/{table_name}.sql"
-
-#             # SQL content: could be complex based on transformations
-#             sql_content = f"-- DBT model for {table_name}\n"
-#             for col in table.get("columns", []):
-#                 sql_content += f"SELECT {col['source']} AS {col['target']}\n"
-#             sql_content += f"FROM {table.get('source_table', 'unknown_source')};\n"
-
-#             dbt_files[file_path] = sql_content
-
-#         # Minimal dbt_project.yml
-#         dbt_files["dbt_project.yml"] = """
-# name: 'dsx_project'
-# version: '1.0'
-# config-version: 2
-# profile: 'default'
-# model-paths: ['models']
-# """
-
-
-#         return dbt_files
-
-
 from google import genai
-import json
+import json,re,base64
 import os
 
 from processing.lineage import LineageEngine
@@ -948,7 +58,19 @@ class DSXAgent:
         snowflake_sql = self.flatten_sql(dbt_files)
 
         # --------------------------------------
-        # STEP 5: DOCUMENTATION (LLM ONLY HERE)
+        # STEP 5: Data Modeller
+        # --------------------------------------
+
+        data_model = self.generate_data_model(snowflake_sql)
+
+        # --------------------------------------
+        # STEP 6: Data Modeller - ER Diagram
+        # --------------------------------------
+
+        er_diagram = self.generate_er_from_ddl_data_vault(json.loads(data_model))
+
+        # --------------------------------------
+        # STEP 7: DOCUMENTATION (LLM ONLY HERE)
         # --------------------------------------
         documentation = self.generate_documentation(parsed, sttm, snowflake_sql)
 
@@ -959,6 +81,8 @@ class DSXAgent:
             "sttm": sttm,
             "snowflake_sql": snowflake_sql,
             "dbt_files": dbt_files,
+            "data_model": data_model,
+            "er_diagram": er_diagram,
             "documentation": documentation
         }
 
@@ -1237,41 +361,216 @@ class DSXAgent:
         }
 
         return self.to_yaml(final)
+    
+    def generate_data_model(self,sql):
+        prompt = f"""
+            You are an expert Data Vault architect.
+
+    Convert the SQL below into Data Vault structures.
+
+    Steps:
+    1. Identify business keys → HUB tables
+    2. Identify relationships → LINK tables
+    3. Identify attributes → SATELLITE tables
+
+    Guidelines:
+    - HUB: only business keys + hash key
+    - LINK: connects HUB keys
+    - SAT: descriptive columns + load date + hash diff
+
+    Return ONLY valid JSON:
+
+    {{
+    "hubs": {{
+        "hub_customer": "SQL"
+    }},
+    "links": {{
+        "link_customer_order": "SQL"
+    }},
+    "satellites": {{
+        "sat_customer": "SQL"
+    }}
+    }}
+
+    SQL:
+    {sql}
+
+    """
+        response = self.client.models.generate_content(
+                model="gemini-3.1-flash-lite-preview",
+                contents=prompt
+            )
         
+        return response.text.strip()
+    
+    def generate_er_from_ddl_data_vault(self,data_vault: dict) -> str:
+        """
+        Converts your DDL-based Data Vault JSON into Mermaid ER diagram
+        """
+
+        lines = ["erDiagram"]
+
+        hub_keys = {}   # hk → hub_name
+
+        # -----------------------
+        # Hubs
+        # -----------------------
+        for hub_name, ddl in data_vault.get("hubs", {}).items():
+            cols, pks = self.parse_columns_from_ddl(ddl)
+
+            lines.append(f"  {hub_name.upper()} {{")
+            for col in cols:
+                tag = "PK" if col in pks else ""
+                lines.append(f"    string {col} {tag}".strip())
+            lines.append("  }")
+
+            # Store hash key mapping
+            for pk in pks:
+                hub_keys[pk] = hub_name
+
+        # -----------------------
+        # Links
+        # -----------------------
+        link_fks = {}
+
+        for link_name, ddl in data_vault.get("links", {}).items():
+            cols, pks = self.parse_columns_from_ddl(ddl)
+
+            lines.append(f"  {link_name.upper()} {{")
+            for col in cols:
+                tag = "PK" if col in pks else "FK" if col.startswith("hk_") else ""
+                lines.append(f"    string {col} {tag}".strip())
+            lines.append("  }")
+
+            link_fks[link_name] = [c for c in cols if c.startswith("hk_")]
+
+        # -----------------------
+        # Satellites
+        # -----------------------
+        for sat_name, ddl in data_vault.get("satellites", {}).items():
+            cols, pks = self.parse_columns_from_ddl(ddl)
+
+            lines.append(f"  {sat_name.upper()} {{")
+            for col in cols:
+                tag = "PK" if col in pks else "FK" if col.startswith("hk_") else ""
+                lines.append(f"    string {col} {tag}".strip())
+            lines.append("  }")
+
+        # -----------------------
+        # Relationships
+        # -----------------------
+
+        # Hub ↔ Link
+        for link_name, fks in link_fks.items():
+            for fk in fks:
+                if fk in hub_keys:
+                    hub_name = hub_keys[fk]
+                    lines.append(
+                        f"  {hub_name.upper()} ||--o{{ {link_name.upper()} : links"
+                    )
+
+        # Satellite ↔ Hub/Link
+        for sat_name, ddl in data_vault.get("satellites", {}).items():
+            cols, _ = self.parse_columns_from_ddl(ddl)
+
+            for col in cols:
+                if col in hub_keys:
+                    lines.append(
+                        f"  {hub_keys[col].upper()} ||--o{{ {sat_name.upper()} : has"
+                    )
+                elif col.startswith("hk_"):
+                    # assume satellite linked to link
+                    for link_name in data_vault.get("links", {}):
+                        lines.append(
+                            f"  {link_name.upper()} ||--o{{ {sat_name.upper()} : has"
+                        )
+                    break
+
+        diagram_text = "\n".join(lines)
+
+        prompt = f"""
+        You are a senior data architect and data modeling expert.
+
+        Your task is to enhance and refine a Mermaid ER diagram generated from a Data Vault model.
+
+        INPUT:
+        You will receive a Mermaid ER diagram that contains:
+        - Hubs, Links, Satellites
+        - Technical column names (e.g., hk_account_id, load_date)
+        - System-oriented structure
+
+        OBJECTIVE:
+        Transform this into a clean, business-friendly ER diagram.
+
+        RULES:
+        1. Keep valid Mermaid ER syntax (erDiagram)
+        2. DO NOT add explanations — output ONLY Mermaid code
+        3. Improve naming:
+        - Remove prefixes like "hub_", "sat_", "link_"
+        - Convert names to business entities (e.g., ACCOUNT, TRANSACTION)
+        4. Simplify columns:
+        - Replace hash keys (hk_*) with business keys (e.g., account_id)
+        - Remove technical fields like load_date, record_source, hash_diff
+        5. Improve relationships:
+        - Add meaningful relationship names (e.g., "makes", "belongs_to", "has_risk")
+        - Ensure correct cardinality (||--o{{, etc.)
+        6. Merge satellites into their parent entities where appropriate
+        7. Keep diagram clean and minimal — focus on business understanding
+        8. Preserve all important business attributes
+
+        OPTIONAL IMPROVEMENTS:
+        - Group related attributes logically
+        - Rename vague fields into meaningful business terms
+
+        INPUT DIAGRAM:
+        {diagram_text}
+
+        OUTPUT:
+        Return ONLY the improved Mermaid ER diagram.
+        """
+
+        response = self.client.models.generate_content(
+                model="gemini-3.1-flash-lite-preview",
+                contents=prompt
+            )
+        text = response.text.strip()
+        graph_bytes = text.encode("utf8")
+        base64_bytes = base64.b64encode(graph_bytes)
+        base64_string = base64_bytes.decode("ascii")
+        return f"https://mermaid.ink/img/{base64_string}"
+        # return text
 
     
-    # def generate_schema_yml(self, raw_models):
+    def parse_columns_from_ddl(self,ddl: str):
+        """
+        Extract column definitions from CREATE TABLE SQL
+        """
+        inside = ddl[ddl.find("(")+1: ddl.rfind(")")]
+        parts = [p.strip() for p in inside.split(",")]
 
-    #     models_yaml = []
+        columns = []
+        pk_columns = []
 
-    #     for layer, models in raw_models.items():
+        for part in parts:
+            if part.upper().startswith("PRIMARY KEY"):
+                pk_match = re.findall(r"\((.*?)\)", part)
+                if pk_match:
+                    pk_columns.extend([c.strip() for c in pk_match[0].split(",")])
+                continue
 
-    #         for model_name in models.keys():
+            tokens = part.split()
+            col_name = tokens[0]
 
-    #             columns = []
+            if "PRIMARY" in part.upper():
+                pk_columns.append(col_name)
 
-    #             # 🔥 smart default tests
-    #             columns.append({
-    #                 "name": "id",
-    #                 "tests": ["not_null", "unique"]
-    #             })
+            columns.append(col_name)
 
-    #             columns.append({
-    #                 "name": "created_at",
-    #                 "tests": ["not_null"]
-    #             })
+        return columns, pk_columns
+            
 
-    #             models_yaml.append({
-    #                 "name": model_name,
-    #                 "columns": columns
-    #             })
-
-    #     final = {
-    #         "version": 2,
-    #         "models": models_yaml
-    #     }
-
-    #     return self.to_yaml(final)
+    
+   
     
     def to_yaml(self, data):
 
@@ -1314,11 +613,14 @@ SQL SAMPLE:
                 contents=prompt
             )
             text = response.text.strip()
-            return self.clean_llm_output(text)
+            return text
 
         except Exception as e:
             print("⚠️ DOC GENERATION FAILED:", e)
             return self.generate_basic_doc(parsed, sttm)
+        
+
+
 
     # ======================================================
     # 🧹 CLEAN LLM OUTPUT
@@ -1340,7 +642,6 @@ SQL SAMPLE:
         for stage, details in parsed.get("stages", {}).items():
             doc.append(f"{stage} ({details.get('type')})")
         return "\n".join(doc)
-
 
 
 
@@ -1517,3 +818,54 @@ class InformaticaPipeline:
 
         if self.debug:
             print(msg)
+
+
+
+ # def generate_schema_yml(self, raw_models):
+
+    #     models_yaml = []
+
+    #     for layer, models in raw_models.items():
+
+    #         for model_name in models.keys():
+
+    #             columns = []
+
+    #             # 🔥 smart default tests
+    #             columns.append({
+    #                 "name": "id",
+    #                 "tests": ["not_null", "unique"]
+    #             })
+
+    #             columns.append({
+    #                 "name": "created_at",
+    #                 "tests": ["not_null"]
+    #             })
+
+    #             models_yaml.append({
+    #                 "name": model_name,
+    #                 "columns": columns
+    #             })
+
+    #     final = {
+    #         "version": 2,
+    #         "models": models_yaml
+    #     }
+
+    #     return self.to_yaml(final)
+
+
+            # try:
+        #     return json.loads(response.json)
+        # except:
+        #     # extract JSON from text
+        #     match = re.search(r'\{.*\}', response.text.strip(), re.DOTALL)
+        #     if match:
+        #         return json.loads(match.group(0))
+
+        # return {
+        #     "hubs": {},
+        #     "links": {},
+        #     "satellites": {}
+        # }
+    
