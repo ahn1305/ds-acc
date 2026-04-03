@@ -1,4 +1,4 @@
-# DSX ACCELERATOR PLATFORM v2.0
+# MigEx PLATFORM v2.0
 ## Complete Technical & Business Documentation
 
 **Version**: 2.0 | **Status**: Production-Ready | **Date**: April 2026  
@@ -8,7 +8,7 @@
 
 ## EXECUTIVE OVERVIEW
 
-**DSX Accelerator** is an enterprise-grade ETL modernization platform that automates the transformation of legacy Informatica PowerCenter and DataStage DSX workflows into cloud-native Snowflake data architectures.
+**MigEx** is an enterprise-grade ETL modernization platform that automates the transformation of legacy Informatica PowerCenter and DataStage DSX workflows into cloud-native Snowflake data architectures.
 
 ### Business Impact at a Glance
 
@@ -42,7 +42,7 @@
 
 ### What It Does
 
-DSX Accelerator takes legacy ETL definitions and generates production-ready cloud data architectures:
+MigEx takes legacy ETL definitions and generates production-ready cloud data architectures:
 
 **Input** → **Analysis** → **Generation** → **Output**
 
