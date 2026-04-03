@@ -6,6 +6,8 @@
 
 ---
 
+![alt text](image.png)
+
 ## EXECUTIVE OVERVIEW
 
 **MigEx** is an enterprise-grade ETL modernization platform that automates the transformation of legacy Informatica PowerCenter and DataStage DSX workflows into cloud-native Snowflake data architectures.
@@ -18,8 +20,7 @@
 | **Cost Savings** | 60-80% lower | $500K → $150K per migration |
 | **Automation Rate** | 90%+ | Minimal manual work |
 | **Error Reduction** | 95% fewer issues | Confidence scoring on all transformations |
-| **Compliance** | FIBO-aligned | Complete audit trail & lineage |
-| **Scalability** | 100+ files/batch | Parallel processing via Celery |
+| **Scalability** | Multiple files/batch | Parallel processing via Celery |
 
 ---
 
@@ -49,13 +50,13 @@ MigEx takes legacy ETL definitions and generates production-ready cloud data arc
 ```
 Legacy ETL Files          │         Processing Engines      │  Production Artifacts
                          │                                 │
-• DataStage (.dsx)       │  ┌─ DSXParser              │  • STTM (Mapping Doc)
-• Informatica (.xml)     │  ├─ LineageEngine          │  • Snowflake SQL
-• Multiple files/batch   │  ├─ STTM Generator         │  • DBT Project
-  (parallel)             │  ├─ SQL Generator          │  • ER Diagrams
-                         │  ├─ DBT Generator          │  • Data Model JSON
-                         │  ├─ Doc Generator          │  • Auto Documentation
-                         │  └─ LLM Enhancement        │  • Processing Metrics
+• DataStage (.dsx)       │  ┌─ Parser                      │  • STTM (Mapping Doc)
+• Informatica (.xml)     │  ├─ LineageEngine               │  • Snowflake SQL
+• Multiple files/batch   │  ├─ STTM Generator              │  • DBT Project
+  (parallel)             │  ├─ SQL Generator               │  • ER Diagram
+                         │  ├─ DBT Generator               │  • Data Model JSON
+                         │  ├─ Doc Generator               │  • Auto Documentation
+                         │  └─ LLM Enhancement             │  • Processing Metrics
 ```
 
 ### Version 2.0 Status
@@ -69,7 +70,7 @@ Legacy ETL Files          │         Processing Engines      │  Production Ar
 | **ER Diagrams** | ✅ Complete | Production-Ready |
 | **Real-time Dashboard** | ✅ Complete | Production-Ready |
 | **Informatica Support** | 🔄 80% Complete | Phase 2 In Progress |
-| **Informatica SQL Gen** | 🔄 70% Complete | Phase 2 Q3 2026 |
+| **Informatica SQL Gen** | 🔄 70% Complete | Phase 2 In Progress |
 
 ---
 
@@ -148,7 +149,7 @@ Database           SQLite/PostgreSQL   Any        Metadata storage
 ORM                Django ORM          Built-in   DB abstraction
 REST API           DRF (Django REST)   Latest     API serialization
 Real-time          Django Channels     Latest     WebSocket messaging
-LLM Integration    Google GenAI        Latest     Documentation
+LLM Integration    Google GenAI        Latest     Documentation/Enhancement
 Data Processing    Pandas              Latest     Transformations
 Excel Export       OpenPyXL            Latest     STTM export
 Template Rendering Jinja2              Latest     SQL generation
@@ -245,7 +246,7 @@ confidence = max(0, confidence)
 
 ### 3. Snowflake SQL Generation
 
-Generates production-ready Snowflake SQL following Data Vault 2.0 patterns.
+Generates production-ready Snowflake SQL following Data Vault patterns.
 
 **Staging Layer** (Raw data import):
 ```sql
@@ -285,7 +286,6 @@ FROM int_customer;
 ```
 
 **Features**:
-- Hash key generation (MD5, SHA1)
 - Satellite hash diff for change detection
 - SCD Type 2 history tracking
 - Incremental load patterns
@@ -312,7 +312,6 @@ models/
 │   └── fct_transactions.sql
 ├── schema.yml       # Documentation + tests
 ├── dbt_project.yml  # Project configuration
-└── packages.yml     # Dependencies
 ```
 
 **Generated SQL Example**:
@@ -799,107 +798,39 @@ Events Received:
 
 ### Development Setup
 ```bash
-# Terminal 1: Django
-python manage.py runserver
-
-# Terminal 2: Celery
+# Terminal 1: Celery
 celery -A dsx_platform worker -l info --pool=threads
 
-# Terminal 3: Daphne (WebSocket)
+# Terminal 2: Daphne (WebSocket)
 daphne -b 0.0.0.0 -p 8001 dsx_platform.asgi:application
 
 # Access: http://localhost:8000
 ```
 
-### Production Deployment
-```bash
-# Docker Compose
-docker-compose -f docker-compose.prod.yml up -d
-
-# Services:
-# - Gunicorn (Django): port 8000
-# - Celery Workers: background (scale to 5+)
-# - Daphne (WebSocket): port 8001
-# - PostgreSQL: background
-# - Redis: background
-```
-
-### Kubernetes Deployment
-```yaml
-# 3 Django replicas (load balanced)
-# 5 Celery workers (auto-scaling)
-# Redis Sentinel (high availability)
-# PostgreSQL with replication
-```
-
----
 
 ## ROADMAP
 
 ### Phase 1: ✅ COMPLETE (Current)
-- [x] DataStage DSX parsing
-- [x] STTM generation
-- [x] Snowflake SQL generation
-- [x] DBT project scaffolding
-- [x] ER diagram generation
-- [x] Real-time dashboard
-- [x] Parallel processing
-- [x] WebSocket live updates
+- [✅] DataStage DSX parsing
+- [✅] STTM generation
+- [✅] Snowflake SQL generation
+- [✅] DBT project scaffolding
+- [✅] ER diagram generation
+- [✅] Real-time dashboard
+- [✅] Parallel processing
+- [✅] WebSocket live updates
 
 ### Phase 2: 🔄 IN PROGRESS (Q3 2026)
-- [ ] Informatica advanced transformation rules (70%)
-- [ ] Informatica session parameters (30%)
-- [ ] Informatica workflow orchestration patterns (20%)
-- [ ] Full integration testing
-- [ ] Production validation
+- [⏳] Informatica advanced transformation rules (70%)
+- [⏳] Informatica session parameters (30%)
+- [⏳] Informatica workflow orchestration patterns (20%)
+- [⏳] Full integration testing
+- [⏳] Production validation
 
-### Phase 3: ⏳ PLANNED (Q4 2026)
-- [ ] Multi-database support (PostgreSQL, BigQuery, Redshift)
-- [ ] Custom transformation rule editor (UI)
-- [ ] dbt Cloud integration
-- [ ] CDC pattern detection
-- [ ] ML-based data quality scoring
-
-### Phase 4: 📅 FUTURE
-- [ ] LDAP/SSO authentication
-- [ ] Role-based access control (RBAC)
-- [ ] Multi-tenancy
-- [ ] Kubernetes auto-scaling
-- [ ] Advanced monitoring/alerting
 
 ---
-
-## PERFORMANCE SPECIFICATIONS
-
-### Processing Speed
-| File Size | Time | Throughput |
-|-----------|------|-----------|
-| < 1MB | 30-60s | 60-120/hour |
-| 1-10MB | 2-5m | 12-30/hour |
-| 10-100MB | 10-30m | 2-6/hour |
-| > 100MB | 30-60m | < 2/hour |
 
 ### System Requirements
 **Minimum**: 4GB RAM, 2 CPU, 50GB disk  
 **Recommended**: 32GB RAM, 8 CPU, 500GB SSD  
 **Scale**: 100+ files/batch, 20 concurrent tasks
-
----
-
-## SUPPORT & NEXT STEPS
-
-1. **Immediate**: Review documentation
-2. **Week 1**: Schedule demo with team
-3. **Week 2**: Pilot with 5-10 ETL jobs
-4. **Week 3**: Gather feedback
-5. **Week 4**: Plan full rollout
-
-**Contact**:
-- Technical: devops@company.com
-- Business: bizintel@company.com
-
----
-
-**Document Version**: 2.0  
-**Last Updated**: April 4, 2026  
-**Approved**: Data Engineering Leadership
