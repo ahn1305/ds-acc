@@ -1,8 +1,7 @@
-# MigEx PLATFORM v2.0
+# MigEx PLATFORM v1.0.0
 ## Complete Technical & Business Documentation
 
-**Version**: 2.0 | **Status**: Production-Ready | **Date**: April 2026  
-**Classification**: Internal Use | **Audience**: All Stakeholders
+**Version**: 1.0.0 | **Classification**: Internal Use | **Audience**: All Stakeholders
 
 ---
 
@@ -59,7 +58,7 @@ Legacy ETL Files          │         Processing Engines      │  Production Ar
                          │  └─ LLM Enhancement             │  • Processing Metrics
 ```
 
-### Version 2.0 Status
+### Version 1.0.0 Status
 
 | Component | Status | Quality |
 |-----------|--------|---------|
@@ -77,64 +76,7 @@ Legacy ETL Files          │         Processing Engines      │  Production Ar
 ## ARCHITECTURE & COMPONENTS
 
 ### System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    CLIENT LAYER                                │
-│  ┌─────────────────┐  ┌──────────────────────────────────────┐│
-│  │  HTML/JS UI     │  │  Real-time WebSocket Connection     ││
-│  │  (upload.html)  │  │  (Live Progress Updates)            ││
-│  └─────────────────┘  └──────────────────────────────────────┘│
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────────┐
-│                    API LAYER (Django REST)                      │
-│  POST /api/ingestion/upload/                                    │
-│  GET  /api/ingestion/batch/{id}/                               │
-│  WS   /ws/batch/{id}/  (WebSocket)                             │
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────────┐
-│              BUSINESS LOGIC LAYER (Django Views)                │
-│  • UploadView: Batch creation                                   │
-│  • BatchDetailView: Results retrieval                           │
-│  • WebSocket Consumer: Real-time updates                        │
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────────┐
-│          TASK QUEUE (Celery + Redis Broker)                     │
-│  • process_batch() - Orchestrates file processing              │
-│  • process_file() - DSX pipeline (Celery @shared_task)        │
-│  • process_informatica_batch() - Informatica pipeline         │
-│  • Max Parallelism: 20 concurrent tasks                        │
-│  • Retry Logic: 2 attempts with exponential backoff            │
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────────┐
-│           DATA PROCESSING ENGINES                               │
-│  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-│  ┃  DSX PIPELINE             ┃ ┃  INFORMATICA PIPELINE   ┃ │
-│  ┃  ┣━ DSXParser             ┃ ┃  ┣━ InformaticaParser   ┃ │
-│  ┃  ┣━ LineageEngine         ┃ ┃  ┣━ GraphBuilder        ┃ │
-│  ┃  ┣━ STTM Generator        ┃ ┃  ┣━ LineageEngine       ┃ │
-│  ┃  ┣━ SQL Generator         ┃ ┃  ┣━ STTM Generator      ┃ │
-│  ┃  ┣━ DBT Generator         ┃ ┃  ┣━ SQL Generator       ┃ │
-│  ┃  ┣━ DataModel Generator   ┃ ┃  ┗━ Doc Generator       ┃ │
-│  ┃  ┗━ ER Renderer           ┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
-│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                               │
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────────┐
-│               DATABASE & STORAGE                                │
-│  ┌─────────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  SQLite/PG      │  │  Redis       │  │  File System │      │
-│  │  • BatchJob     │  │  • Task Q    │  │  • Uploads   │      │
-│  │  • DSXFile      │  │  • Channels  │  │  • Outputs   │      │
-│  │  • Informatica  │  │  • Cache     │  │  • Exports   │      │
-│  │    File         │  │              │  │              │      │
-│  └─────────────────┘  └──────────────┘  └──────────────┘      │
-└──────────────────────────────────────────────────────────────────┘
-```
+![alt text](image-1.png)
 
 ### Technology Stack
 
@@ -163,7 +105,6 @@ Template Rendering Jinja2              Latest     SQL generation
 
 #### DataStage DSX (✅ COMPLETE)
 - **Format**: XML-based ETL metadata  
-- **Version**: DataStage v9.x+  
 - **Parsing**: Regex-based extraction
 - **Elements Captured**:
   - Job definitions
@@ -171,34 +112,15 @@ Template Rendering Jinja2              Latest     SQL generation
   - Column definitions with derivation logic
   - Data flow links between stages
 
-**Example DSX Parsing**:
-```
-BEGIN JOB Identifier "CUSTOMER_LOAD"
-  BEGIN STAGE TransfType "Transformer"
-    Identifier "T_HASH_KEY"
-    BEGIN COLUMN
-      Name "hk_customer_id"
-      Derivation "MD5(CUSTOMER_ID || ACCOUNT_NUM)"
-    END COLUMN
-  END STAGE
-END JOB
-```
 
 #### Informatica PowerCenter (🔄 80% COMPLETE)
 - **Format**: XML mapping metadata  
-- **Version**: PowerCenter 9.x+  
 - **Parsing**: XML ElementTree
 - **Elements Extracted**:
   - Mapping definitions
   - Transformation instances (Expression, Lookup, Join, etc.)
   - Source/Target definitions
   - Connection string metadata
-
-**Phase 2 Roadmap** (Completing Q3 2026):
-- [ ] Advanced transformation rule translation
-- [ ] Session parameter handling
-- [ ] Workflow orchestration patterns
-- [ ] Connection string translation to Snowflake
 
 ### 2. Source-to-Target Mapping (STTM)
 
@@ -239,12 +161,10 @@ confidence = max(0, confidence)
 ```
 
 **Output Formats**:
-- JSON for systems integration
 - Excel (.xlsx) for business users
 - HTML table for web display
-- Markdown for documentation
 
-### 3. Snowflake SQL Generation
+### 3. Snowflake SQL Generation (DBT Version)
 
 Generates production-ready Snowflake SQL following Data Vault patterns.
 
@@ -388,12 +308,6 @@ WebSocket-powered live monitoring with comprehensive UI.
 - **Docs Tab**: Auto-generated documentation
 - **DBT Tab**: Project file tree explorer
 
-**File Thumbnails** (Horizontal Scroll):
-- Status indicator (color-coded dot)
-- File number and name
-- Click to switch between files
-- Batch progress overview
-
 ### 7. Parallel Processing with Celery
 
 Leverages Celery + Redis for concurrent file processing.
@@ -424,130 +338,9 @@ Celery Worker Pool
 
 ---
 
-## PROCESSING PIPELINE
-
-### DSX Complete Processing Flow
-
-```
-STEP 1: USER UPLOAD
-└─ POST /api/ingestion/upload/
-   └─ UploadView.post()
-      ├─ Create BatchJob
-      ├─ Create DSXFile records
-      └─ Trigger process_batch.delay(batch_id)
-      └─ Response: {batch_id, file_count}
-
-STEP 2: BATCH ORCHESTRATION
-└─ Celery Task: process_batch(batch_id)
-   ├─ Query all DSXFile for batch
-   ├─ For each file:
-   │  └─ process_file.delay(file_id)
-   └─ Return task IDs list
-
-STEP 3: FILE PARSING
-└─ Celery Task: process_file(file_id)
-   │
-   ├─ PARSE (DSXParser)
-   │  ├─ Load .dsx file
-   │  ├─ Regex extract stages (BEGIN STAGE...END STAGE)
-   │  ├─ Extract columns with derivation logic
-   │  ├─ Extract links (stage dependencies)
-   │  └─ WebSocket: step="PARSING" (10%)
-   │
-   ├─ LINEAGE ANALYSIS (LineageEngine)
-   │  ├─ For each stage output:
-   │  │  ├─ Extract source columns from derivation
-   │  │  ├─ Build lineage path
-   │  │  └─ Append to lineage[]
-   │  └─ WebSocket: step="LINEAGE_ANALYSIS" (20%)
-   │
-   ├─ STTM GENERATION (STTMGenerator)
-   │  ├─ For each lineage entry:
-   │  │  ├─ Classify transformation type
-   │  │  ├─ Calculate confidence score
-   │  │  ├─ Detect incompleteness
-   │  │  └─ Append to STTM[]
-   │  ├─ Export Excel: generate_sttm_excel()
-   │  ├─ Save to DSXFile.sttm_json, sttm_file, sttm_excel
-   │  └─ WebSocket: step="STTM_GENERATED" (30%)
-   │
-   ├─ SQL GENERATION (SnowflakeSQLGenerator)
-   │  ├─ build_staging() → stg_* models
-   │  ├─ build_joins() → join transformation SQL
-   │  ├─ build_lookup() → left join patterns
-   │  ├─ build_incremental() → incremental load logic
-   │  ├─ Combine all into complete SQL file
-   │  ├─ Save to DSXFile.snowflake_sql
-   │  └─ WebSocket: step="SQL_GENERATED" (50%)
-   │
-   ├─ DBT PROJECT GENERATION (build_dbt_project)
-   │  ├─ Generate models/staging/stg_*.sql
-   │  ├─ Generate models/intermediate/int_*.sql
-   │  ├─ Generate models/marts/dim_*.sql
-   │  ├─ Generate models/schema.yml
-   │  ├─ Generate dbt_project.yml
-   │  ├─ Generate packages.yml
-   │  ├─ Save to DSXFile.dbt_sql, dbt_files (JSON)
-   │  └─ WebSocket: step="DBT_GENERATED" (65%)
-   │
-   ├─ DATA MODEL GENERATION (generate_data_model)
-   │  ├─ Parse SQL for CREATE TABLE
-   │  ├─ Extract columns and data types
-   │  ├─ Detect primary/foreign keys
-   │  ├─ Build JSON schema
-   │  ├─ Save to DSXFile.data_model
-   │  └─ WebSocket: step="DATA_MODEL_GENERATED" (75%)
-   │
-   ├─ ER DIAGRAM GENERATION (generate_er_from_ddl)
-   │  ├─ Parse data model
-   │  ├─ Detect Hub/Link/Satellite patterns
-   │  ├─ Map relationships
-   │  ├─ Generate Mermaid syntax
-   │  ├─ Save to DSXFile.er_diagram
-   │  └─ WebSocket: step="ER_DIAGRAM_GENERATED" (85%)
-   │
-   ├─ DOCUMENTATION (generate_documentation)
-   │  ├─ LLM call: Google GenAI
-   │  ├─ Generate business-friendly overview
-   │  ├─ Auto-link transformations to business rules
-   │  ├─ Generate deployment guide
-   │  ├─ Save to DSXFile.documentation
-   │  └─ WebSocket: step="DOCUMENTATION_GENERATED" (95%)
-   │
-   ├─ BATCH COMPLETION CHECK (check_and_mark_batch_complete)
-   │  ├─ Query all DSXFile for batch_id
-   │  ├─ If ALL in ["DONE", "FAILED"]:
-   │  │  ├─ Update BatchJob.status="COMPLETE"
-   │  │  ├─ Update BatchJob.completed_at=NOW()
-   │  │  └─ WebSocket: type="BATCH_COMPLETE"
-   │  └─ Save processing metrics
-   │
-   └─ COMPLETE
-      ├─ DSXFile.status = "DONE"
-      ├─ DSXFile.completed_at = NOW()
-      └─ WebSocket: step="DONE", processing_time_seconds=XXX (100%)
-
-STEP 4: USER RETRIEVES RESULTS
-└─ GET /api/ingestion/batch/{batch_id}/
-   └─ BatchDetailView.get()
-      ├─ Query BatchJob
-      ├─ Query all DSXFile for batch
-      ├─ Calculate timing metrics
-      ├─ Collect all outputs
-      └─ Return JSON response with all artifacts
-
-STEP 5: FRONTEND RENDERING
-└─ JavaScript receives WebSocket updates
-   ├─ Update progress bar in real-time
-   ├─ Render tab content (STTM, SQL, ER, Docs)
-   ├─ Display processing times
-   ├─ Show file thumbnails with status
-   └─ Update batch statistics
-```
-
 ### Informatica Pipeline (🔄 In Progress)
 
-**Status**: 80% complete - Phase 2 Q3 2026
+**Status**: 80% complete - Phase 2 Q2 2026
 
 **Current Implementation** (✅ Complete):
 1. InformaticaParser - XML parsing
@@ -764,10 +557,7 @@ Events Received:
 ### Snowflake Integration
 
 **SQL Generation Patterns**:
-- Data Vault 2.0 Hub/Link/Satellite
-- Hash key MD5/SHA1 generation
-- Hash diff for change detection
-- SCD Type 2 history tracking
+- Data Vault 1.0.0 Hub/Link/Satellite
 - Incremental loading
 - Snowflake native functions
 
@@ -782,31 +572,11 @@ Events Received:
 **Project Scaffolding**:
 - Layered model structure
 - Auto-generated documentation
-- Schema YAML with tests
+- Schema YAML
 - Macro support for reusability
 - Source definitions
 
-**Ready for**:
-- dbt Cloud deployment
-- Custom dbt packages
-- dbt test framework
-- dbt documentation generation
-
 ---
-
-## DEPLOYMENT
-
-### Development Setup
-```bash
-# Terminal 1: Celery
-celery -A dsx_platform worker -l info --pool=threads
-
-# Terminal 2: Daphne (WebSocket)
-daphne -b 0.0.0.0 -p 8001 dsx_platform.asgi:application
-
-# Access: http://localhost:8000
-```
-
 
 ## ROADMAP
 
